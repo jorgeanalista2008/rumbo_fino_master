@@ -9,6 +9,7 @@ import { DriversModule } from './modules/drivers/drivers.module';
 import { RidesModule } from './modules/rides/rides.module';
 import { FinancialsModule } from './modules/financials/financials.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
+import { UsersModule } from './modules/users/users.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { ReviewsModule } from './modules/reviews/reviews.module';
     RedisModule,
     StorageModule,
     AuthModule,
+    UsersModule,
     VehiclesModule,
     DriversModule,
     RidesModule,

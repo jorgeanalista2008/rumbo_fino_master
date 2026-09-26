@@ -13,6 +13,7 @@ import {
   Award,
   TrendingUp,
   Coins,
+  UserCog,
 } from 'lucide-react';
 
 const navigation = [
@@ -22,6 +23,7 @@ const navigation = [
   { name: 'Monitoreo / Despacho', href: '/dashboard/dispatch', icon: MapPin },
   { name: 'Finanzas y Recaudación', href: '/dashboard/financials', icon: DollarSign },
   { name: 'Tasas Oficiales BCV', href: '/dashboard/exchange-rates', icon: TrendingUp },
+  { name: 'Usuarios & Perfiles (5 Roles)', href: '/dashboard/users', icon: UserCog },
 ];
 
 export default function Sidebar() {
