@@ -9,6 +9,7 @@ import { Repository } from 'typeorm';
 
 import { VehicleEntity } from '../../core/database/entities/vehicle.entity';
 import { VehicleDocumentEntity } from '../../core/database/entities/vehicle-document.entity';
+import { DriverEntity } from '../../core/database/entities/driver.entity';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UploadVehicleDocDto } from './dto/upload-vehicle-doc.dto';
 import { VerifyDocDto } from './dto/verify-doc.dto';
@@ -22,31 +23,71 @@ export class VehiclesService {
     private readonly vehicleRepository: Repository<VehicleEntity>,
     @InjectRepository(VehicleDocumentEntity)
     private readonly vehicleDocRepository: Repository<VehicleDocumentEntity>,
+    @InjectRepository(DriverEntity)
+    private readonly driverRepository: Repository<DriverEntity>,
     private readonly storageService: StorageService,
   ) {}
 
   async createVehicle(dto: CreateVehicleDto): Promise<VehicleEntity> {
     const existingPlate = await this.vehicleRepository.findOne({
-      where: { licensePlate: dto.licensePlate },
+      where: { licensePlate: dto.licensePlate.trim().toUpperCase() },
     });
     if (existingPlate) {
       throw new ConflictException('La placa de rodaje ya está registrada en el sistema');
     }
 
     const existingVin = await this.vehicleRepository.findOne({
-      where: { vin: dto.vin },
+      where: { vin: dto.vin.trim().toUpperCase() },
     });
     if (existingVin) {
       throw new ConflictException('El número VIN ya está registrado en el sistema');
     }
 
-    const vehicle = this.vehicleRepository.create(dto);
+    const vehicle = this.vehicleRepository.create({
+      ...dto,
+      licensePlate: dto.licensePlate.trim().toUpperCase(),
+      vin: dto.vin.trim().toUpperCase(),
+    });
     return this.vehicleRepository.save(vehicle);
   }
 
-  async findAllVehicles(): Promise<VehicleEntity[]> {
-    return this.vehicleRepository.find({
+  async findAllVehicles(): Promise<any[]> {
+    const vehicles = await this.vehicleRepository.find({
       order: { createdAt: 'DESC' },
+    });
+
+    const docs = await this.vehicleDocRepository.find({
+      order: { createdAt: 'DESC' },
+    });
+
+    const drivers = await this.driverRepository.find({
+      relations: ['user'],
+    });
+
+    return vehicles.map((v) => {
+      const vDocs = docs.filter((d) => d.vehicleId === v.id);
+      const assignedDriver = drivers.find((dr) => dr.currentVehicleId === v.id);
+
+      return {
+        ...v,
+        documents: vDocs,
+        documentStats: {
+          total: vDocs.length,
+          approved: vDocs.filter((d) => d.status === DocumentStatusEnum.APPROVED).length,
+          pending: vDocs.filter((d) => d.status === DocumentStatusEnum.PENDING).length,
+          rejected: vDocs.filter((d) => d.status === DocumentStatusEnum.REJECTED).length,
+        },
+        assignedDriver: assignedDriver
+          ? {
+              id: assignedDriver.id,
+              name: `${assignedDriver.user?.firstName || ''} ${assignedDriver.user?.lastName || ''}`.trim(),
+              phone: assignedDriver.user?.phoneNumber,
+              email: assignedDriver.user?.email,
+              avatarUrl: assignedDriver.user?.avatarUrl,
+              isOnline: assignedDriver.isOnline,
+            }
+          : null,
+      };
     });
   }
 
@@ -95,7 +136,7 @@ export class VehiclesService {
     const doc = this.vehicleDocRepository.create({
       vehicleId,
       documentType: dto.documentType,
-      documentNumber: dto.documentNumber,
+      documentNumber: dto.documentNumber || null,
       expirationDate: new Date(dto.expirationDate),
       fileUrl,
       status: DocumentStatusEnum.PENDING,
@@ -129,6 +170,8 @@ export class VehiclesService {
         throw new BadRequestException('Debe proporcionar un motivo de rechazo');
       }
       doc.rejectionReason = dto.rejectionReason;
+    } else {
+      doc.rejectionReason = null;
     }
 
     return this.vehicleDocRepository.save(doc);
