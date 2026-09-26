@@ -110,32 +110,85 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Demo Credentials Quick Fill */}
-        <div className="mt-8 pt-6 border-t border-executive-border/60">
-          <p className="text-xs font-semibold text-gray-400 mb-3 text-center">Acceso Rápido de Prueba:</p>
-          <div className="grid grid-cols-2 gap-2">
+        {/* Demo Credentials Quick Fill for all 5 Roles */}
+        <div className="mt-6 pt-5 border-t border-executive-border/60 space-y-2.5">
+          <p className="text-xs font-bold text-gray-400 text-center uppercase tracking-wider">
+            Acceso Rápido por Perfil (5 Roles):
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {/* Super Admin */}
             <button
               type="button"
               onClick={() => {
                 setEmail('admin@rumbofino.com');
-                setPassword('Admin123!');
+                setPassword('Admin2026*');
               }}
-              className="px-3 py-2 bg-executive-dark/70 hover:bg-executive-border border border-executive-border rounded-lg text-left text-xs transition-colors"
+              className="px-3 py-2 bg-executive-dark/80 hover:bg-executive-border border border-purple-500/40 rounded-xl text-left text-xs transition-colors"
             >
-              <div className="font-bold text-luxury-gold">Super Admin</div>
-              <div className="text-[10px] text-gray-400">admin@rumbofino.com</div>
+              <div className="font-black text-purple-400 flex items-center justify-between">
+                <span>👑 Super Admin</span>
+              </div>
+              <div className="text-[10px] text-gray-400 truncate">admin@rumbofino.com</div>
             </button>
 
+            {/* Fleet Admin */}
+            <button
+              type="button"
+              onClick={() => {
+                setEmail('flota@rumbofino.com');
+                setPassword('AdminFlota2026*');
+              }}
+              className="px-3 py-2 bg-executive-dark/80 hover:bg-executive-border border border-luxury-gold/40 rounded-xl text-left text-xs transition-colors"
+            >
+              <div className="font-black text-luxury-gold flex items-center justify-between">
+                <span>🏢 Admin Flota</span>
+              </div>
+              <div className="text-[10px] text-gray-400 truncate">flota@rumbofino.com</div>
+            </button>
+
+            {/* Dispatcher */}
             <button
               type="button"
               onClick={() => {
                 setEmail('despacho@rumbofino.com');
-                setPassword('Despacho123!');
+                setPassword('Despacho2026*');
               }}
-              className="px-3 py-2 bg-executive-dark/70 hover:bg-executive-border border border-executive-border rounded-lg text-left text-xs transition-colors"
+              className="px-3 py-2 bg-executive-dark/80 hover:bg-executive-border border border-sky-500/40 rounded-xl text-left text-xs transition-colors"
             >
-              <div className="font-bold text-white">Despachador</div>
-              <div className="text-[10px] text-gray-400">despacho@rumbofino.com</div>
+              <div className="font-black text-sky-400 flex items-center justify-between">
+                <span>🎧 Despachador</span>
+              </div>
+              <div className="text-[10px] text-gray-400 truncate">despacho@rumbofino.com</div>
+            </button>
+
+            {/* Driver */}
+            <button
+              type="button"
+              onClick={() => {
+                setEmail('chofer1@rumbofino.com');
+                setPassword('Chofer2026*');
+              }}
+              className="px-3 py-2 bg-executive-dark/80 hover:bg-executive-border border border-emerald-500/40 rounded-xl text-left text-xs transition-colors"
+            >
+              <div className="font-black text-emerald-400 flex items-center justify-between">
+                <span>🚗 Chofer VIP</span>
+              </div>
+              <div className="text-[10px] text-gray-400 truncate">chofer1@rumbofino.com</div>
+            </button>
+
+            {/* Passenger */}
+            <button
+              type="button"
+              onClick={() => {
+                setEmail('pasajero1@rumbofino.com');
+                setPassword('Pasajero2026*');
+              }}
+              className="px-3 py-2 bg-executive-dark/80 hover:bg-executive-border border border-slate-500/40 rounded-xl text-left text-xs transition-colors sm:col-span-2"
+            >
+              <div className="font-black text-slate-300 flex items-center justify-between">
+                <span>👤 Cliente / Pasajero VIP</span>
+              </div>
+              <div className="text-[10px] text-gray-400 truncate">pasajero1@rumbofino.com</div>
             </button>
           </div>
         </div>

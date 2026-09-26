@@ -14,6 +14,7 @@ import { DriverBalanceEntity } from './entities/driver-balance.entity';
 import { TransactionEntity } from './entities/transaction.entity';
 import { ReviewEntity } from './entities/review.entity';
 import { ExchangeRateEntity } from './entities/exchange-rate.entity';
+import { RolePermissionEntity } from './entities/role-permission.entity';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { ExchangeRateEntity } from './entities/exchange-rate.entity';
           TransactionEntity,
           ReviewEntity,
           ExchangeRateEntity,
+          RolePermissionEntity,
         ],
         synchronize: false,
         logging: process.env.NODE_ENV === 'development',
