@@ -318,21 +318,32 @@ export default function VehiclesPage() {
 
   // Unassign / End Shift Action
   const handleUnassignDriverFromVehicle = async () => {
-    if (!selectedVehicle?.assignedDriver) return;
+    if (!selectedVehicle) return;
 
     setSubmittingEndShift(true);
     try {
-      await api.post(`/drivers/${selectedVehicle.assignedDriver.id}/end-shift-admin`, {
-        finalOdometer: Number(endShiftOdometer) || 45000,
-        notes: 'Cierre de turno y liberación desde Ficha Técnica',
-      });
+      try {
+        await api.post(`/vehicles/${selectedVehicle.id}/release-driver`, {
+          finalOdometer: Number(endShiftOdometer) || 50000,
+          notes: 'Cierre de turno y liberación desde Ficha Técnica',
+        });
+      } catch (err1) {
+        if (selectedVehicle.assignedDriver?.id) {
+          await api.post(`/drivers/${selectedVehicle.assignedDriver.id}/end-shift-admin`, {
+            finalOdometer: Number(endShiftOdometer) || 50000,
+            notes: 'Cierre de turno y liberación desde Ficha Técnica',
+          });
+        } else {
+          throw err1;
+        }
+      }
 
       setSelectedVehicle((prev) => (prev ? { ...prev, status: 'AVAILABLE', assignedDriver: null } : null));
       setVehicles((prev) =>
         prev.map((v) => (v.id === selectedVehicle.id ? { ...v, status: 'AVAILABLE', assignedDriver: null } : v)),
       );
 
-      showToast('✅ Unidad liberada y turno finalizado correctamente.');
+      showToast('✅ Unidad liberada y conductor desasignado correctamente.');
       setShowEndShiftPrompt(false);
       loadVehicles();
       loadAllDrivers();

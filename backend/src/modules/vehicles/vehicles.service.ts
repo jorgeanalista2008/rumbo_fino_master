@@ -10,6 +10,7 @@ import { Repository } from 'typeorm';
 import { VehicleEntity } from '../../core/database/entities/vehicle.entity';
 import { VehicleDocumentEntity } from '../../core/database/entities/vehicle-document.entity';
 import { DriverEntity } from '../../core/database/entities/driver.entity';
+import { DriverVehicleAssignmentEntity } from '../../core/database/entities/driver-vehicle-assignment.entity';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UploadVehicleDocDto } from './dto/upload-vehicle-doc.dto';
 import { VerifyDocDto } from './dto/verify-doc.dto';
@@ -25,6 +26,8 @@ export class VehiclesService {
     private readonly vehicleDocRepository: Repository<VehicleDocumentEntity>,
     @InjectRepository(DriverEntity)
     private readonly driverRepository: Repository<DriverEntity>,
+    @InjectRepository(DriverVehicleAssignmentEntity)
+    private readonly assignmentRepository: Repository<DriverVehicleAssignmentEntity>,
     private readonly storageService: StorageService,
   ) {}
 
@@ -175,5 +178,59 @@ export class VehiclesService {
     }
 
     return this.vehicleDocRepository.save(doc);
+  }
+
+  async releaseDriverFromVehicle(
+    vehicleId: string,
+    finalOdometer?: number,
+    notes?: string,
+  ): Promise<VehicleEntity> {
+    const vehicle = await this.findVehicleById(vehicleId);
+    vehicle.status = VehicleStatusEnum.AVAILABLE;
+    await this.vehicleRepository.save(vehicle);
+
+    // Find any drivers assigned to this vehicle
+    const drivers = await this.driverRepository.find({
+      where: { currentVehicleId: vehicleId },
+    });
+
+    for (const dr of drivers) {
+      dr.currentVehicleId = null;
+      dr.isOnline = false;
+      await this.driverRepository.save(dr);
+
+      // Complete active assignments
+      const activeAssignments = await this.assignmentRepository.find({
+        where: { driverId: dr.id, vehicleId, shiftStatus: 'ACTIVE' },
+      });
+      for (const a of activeAssignments) {
+        a.endTime = new Date();
+        a.finalOdometer =
+          finalOdometer && finalOdometer >= a.initialOdometer
+            ? finalOdometer
+            : (finalOdometer && finalOdometer > 0 ? finalOdometer : a.initialOdometer);
+        a.shiftStatus = 'COMPLETED';
+        if (notes) {
+          a.notes = a.notes ? `${a.notes} | Cierre: ${notes}` : notes;
+        }
+        await this.assignmentRepository.save(a);
+      }
+    }
+
+    // Also close any other active shift referencing this vehicleId
+    const remainingActiveShifts = await this.assignmentRepository.find({
+      where: { vehicleId, shiftStatus: 'ACTIVE' },
+    });
+    for (const s of remainingActiveShifts) {
+      s.endTime = new Date();
+      s.finalOdometer =
+        finalOdometer && finalOdometer >= s.initialOdometer
+          ? finalOdometer
+          : (finalOdometer && finalOdometer > 0 ? finalOdometer : s.initialOdometer);
+      s.shiftStatus = 'COMPLETED';
+      await this.assignmentRepository.save(s);
+    }
+
+    return vehicle;
   }
 }

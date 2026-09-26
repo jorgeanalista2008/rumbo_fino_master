@@ -276,12 +276,15 @@ export class DriversService {
   ): Promise<DriverVehicleAssignmentEntity> {
     const driver = await this.findDriverById(driverId);
 
-    // Check if driver already has an active shift
-    const activeShift = await this.assignmentRepository.findOne({
+    // Close any previous active shifts gracefully
+    const previousActiveShifts = await this.assignmentRepository.find({
       where: { driverId, shiftStatus: ShiftStatusEnum.ACTIVE },
     });
-    if (activeShift) {
-      throw new BadRequestException('El chofer ya tiene un turno de conducción activo');
+    for (const prev of previousActiveShifts) {
+      prev.endTime = new Date();
+      prev.finalOdometer = prev.initialOdometer;
+      prev.shiftStatus = ShiftStatusEnum.COMPLETED;
+      await this.assignmentRepository.save(prev);
     }
 
     // Verify vehicle availability
@@ -289,17 +292,25 @@ export class DriversService {
     if (!vehicle) {
       throw new NotFoundException(`Vehículo con ID '${dto.vehicleId}' no encontrado`);
     }
-    if (vehicle.status !== VehicleStatusEnum.AVAILABLE) {
-      throw new BadRequestException(
-        `El vehículo seleccionado no está disponible (Estado actual: ${vehicle.status})`,
-      );
+
+    // Release any previous driver attached to this vehicle
+    const otherDrivers = await this.driverRepository.find({
+      where: { currentVehicleId: dto.vehicleId },
+    });
+    for (const od of otherDrivers) {
+      if (od.id !== driverId) {
+        od.currentVehicleId = null;
+        od.isOnline = false;
+        await this.driverRepository.save(od);
+      }
     }
 
     // Create assignment
+    const initialKm = Number(dto.initialOdometer) > 0 ? Number(dto.initialOdometer) : 45000;
     const assignment = this.assignmentRepository.create({
       driverId,
       vehicleId: dto.vehicleId,
-      initialOdometer: dto.initialOdometer,
+      initialOdometer: initialKm,
       shiftStatus: ShiftStatusEnum.ACTIVE,
       notes: dto.notes,
     });
@@ -316,40 +327,45 @@ export class DriversService {
     return savedAssignment;
   }
 
-  async endShift(driverId: string, dto: EndShiftDto): Promise<DriverVehicleAssignmentEntity> {
+  async endShift(driverId: string, dto: EndShiftDto): Promise<any> {
     const driver = await this.findDriverById(driverId);
 
     const activeShift = await this.assignmentRepository.findOne({
       where: { driverId, shiftStatus: ShiftStatusEnum.ACTIVE },
+      order: { createdAt: 'DESC' },
     });
-    if (!activeShift) {
-      throw new BadRequestException('No existe un turno activo para finalizar');
-    }
 
-    if (dto.finalOdometer < activeShift.initialOdometer) {
-      throw new BadRequestException(
-        'El kilometraje final no puede ser menor al kilometraje inicial registrado',
-      );
-    }
+    const vehicleIdToRelease = activeShift?.vehicleId || driver.currentVehicleId;
+    let completedAssignment = null;
 
-    activeShift.endTime = new Date();
-    activeShift.finalOdometer = dto.finalOdometer;
-    activeShift.shiftStatus = ShiftStatusEnum.COMPLETED;
-    if (dto.notes) {
-      activeShift.notes = activeShift.notes
-        ? `${activeShift.notes} | Cierre: ${dto.notes}`
-        : dto.notes;
-    }
+    if (activeShift) {
+      const finalKm =
+        dto.finalOdometer !== undefined &&
+        dto.finalOdometer !== null &&
+        Number(dto.finalOdometer) >= activeShift.initialOdometer
+          ? Number(dto.finalOdometer)
+          : (Number(dto.finalOdometer) > 0 ? Number(dto.finalOdometer) : activeShift.initialOdometer);
 
-    const completedAssignment = await this.assignmentRepository.save(activeShift);
+      activeShift.endTime = new Date();
+      activeShift.finalOdometer = finalKm;
+      activeShift.shiftStatus = ShiftStatusEnum.COMPLETED;
+      if (dto.notes) {
+        activeShift.notes = activeShift.notes
+          ? `${activeShift.notes} | Cierre: ${dto.notes}`
+          : dto.notes;
+      }
+      completedAssignment = await this.assignmentRepository.save(activeShift);
+    }
 
     // Release vehicle
-    const vehicle = await this.vehicleRepository.findOne({
-      where: { id: activeShift.vehicleId },
-    });
-    if (vehicle) {
-      vehicle.status = VehicleStatusEnum.AVAILABLE;
-      await this.vehicleRepository.save(vehicle);
+    if (vehicleIdToRelease) {
+      const vehicle = await this.vehicleRepository.findOne({
+        where: { id: vehicleIdToRelease },
+      });
+      if (vehicle) {
+        vehicle.status = VehicleStatusEnum.AVAILABLE;
+        await this.vehicleRepository.save(vehicle);
+      }
     }
 
     // Update driver state
@@ -357,7 +373,14 @@ export class DriversService {
     driver.isOnline = false;
     await this.driverRepository.save(driver);
 
-    return completedAssignment;
+    return (
+      completedAssignment || {
+        driverId: driver.id,
+        vehicleId: vehicleIdToRelease,
+        shiftStatus: ShiftStatusEnum.COMPLETED,
+        message: 'Turno finalizado y unidad liberada exitosamente',
+      }
+    );
   }
 
   async getFullProfile(driverId: string): Promise<any> {

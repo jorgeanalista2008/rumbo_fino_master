@@ -3,11 +3,19 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { VehicleEntity } from '../../core/database/entities/vehicle.entity';
 import { VehicleDocumentEntity } from '../../core/database/entities/vehicle-document.entity';
 import { DriverEntity } from '../../core/database/entities/driver.entity';
+import { DriverVehicleAssignmentEntity } from '../../core/database/entities/driver-vehicle-assignment.entity';
 import { VehiclesService } from './vehicles.service';
 import { VehiclesController } from './vehicles.controller';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([VehicleEntity, VehicleDocumentEntity, DriverEntity])],
+  imports: [
+    TypeOrmModule.forFeature([
+      VehicleEntity,
+      VehicleDocumentEntity,
+      DriverEntity,
+      DriverVehicleAssignmentEntity,
+    ]),
+  ],
   controllers: [VehiclesController],
   providers: [VehiclesService],
   exports: [VehiclesService],

@@ -120,4 +120,19 @@ export class VehiclesController {
     const verifiedDoc = await this.vehiclesService.verifyDocument(docId, dto, user.id);
     return ApiResponseDto.ok(verifiedDoc, `Documento verificado: ${dto.status}`);
   }
+
+  @Post(':id/release-driver')
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.DISPATCHER)
+  @ApiOperation({ summary: 'Liberar conductor asignado a este vehículo y retornar unidad a disponible' })
+  async releaseDriverFromVehicle(
+    @Param('id') vehicleId: string,
+    @Body() body: { finalOdometer?: number; notes?: string },
+  ) {
+    const res = await this.vehiclesService.releaseDriverFromVehicle(
+      vehicleId,
+      body?.finalOdometer,
+      body?.notes,
+    );
+    return ApiResponseDto.ok(res, 'Conductor desasignado y vehículo liberado exitosamente');
+  }
 }
