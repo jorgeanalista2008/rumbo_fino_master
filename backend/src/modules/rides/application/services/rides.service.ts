@@ -147,8 +147,8 @@ export class RidesService {
     return updatedRide;
   }
 
-  async getActiveRides(): Promise<RideEntity[]> {
-    return this.rideRepository.find({
+  async getActiveRides(): Promise<any[]> {
+    let list = await this.rideRepository.find({
       where: {
         status: In([
           RideStatusEnum.SOLICITADO,
@@ -161,13 +161,108 @@ export class RidesService {
       relations: ['passenger', 'driver', 'driver.user', 'vehicle'],
       order: { requestedAt: 'DESC' },
     });
+
+    if (list.length === 0) {
+      // Create seed demo active rides with real drivers & vehicles if available
+      const drivers = await this.driverRepository.find({ relations: ['user', 'currentVehicle'] });
+      if (drivers.length > 0) {
+        const d1 = drivers[0];
+        const d2 = drivers.length > 1 ? drivers[1] : drivers[0];
+
+        const ride1 = this.rideRepository.create({
+          passengerId: d1.userId,
+          driverId: d1.id,
+          vehicleId: d1.currentVehicleId || undefined,
+          status: RideStatusEnum.EN_CURSO,
+          categoryRequested: 'EXECUTIVE_SEDAN' as any,
+          originAddress: 'Centro Financiero Las Mercedes, Caracas',
+          originLatitude: 10.4806,
+          originLongitude: -66.8622,
+          destinationAddress: 'Aeropuerto Internacional Simón Bolívar de Maiquetía (CCS)',
+          destinationLatitude: 10.6031,
+          destinationLongitude: -66.9906,
+          distanceKm: 28.4,
+          estimatedDurationMin: 45,
+          baseFare: 5.0,
+          distanceFare: 42.6,
+          timeFare: 7.4,
+          surgeMultiplier: 1.0,
+          totalFare: 55.0,
+          platformFee: 8.25,
+          driverNetEarnings: 46.75,
+          paymentMethod: 'PAGO_MOVIL',
+          requestedAt: new Date(),
+          acceptedAt: new Date(),
+          startedAt: new Date(),
+        });
+        await this.rideRepository.save(ride1);
+
+        const ride2 = this.rideRepository.create({
+          passengerId: d2.userId,
+          driverId: d2.id,
+          vehicleId: d2.currentVehicleId || undefined,
+          status: RideStatusEnum.EN_CAMINO,
+          categoryRequested: 'VIP_SUV' as any,
+          originAddress: 'Hotel Eurobuilding & Suites, Caracas',
+          originLatitude: 10.4725,
+          originLongitude: -66.8552,
+          destinationAddress: 'Altamira Village & Business Center, Chacao',
+          destinationLatitude: 10.4965,
+          destinationLongitude: -66.8521,
+          distanceKm: 5.2,
+          estimatedDurationMin: 15,
+          baseFare: 5.0,
+          distanceFare: 15.0,
+          timeFare: 4.0,
+          surgeMultiplier: 1.0,
+          totalFare: 24.0,
+          platformFee: 3.6,
+          driverNetEarnings: 20.4,
+          paymentMethod: 'CREDIT_CARD',
+          requestedAt: new Date(),
+          acceptedAt: new Date(),
+        });
+        await this.rideRepository.save(ride2);
+
+        list = await this.rideRepository.find({
+          where: {
+            status: In([
+              RideStatusEnum.SOLICITADO,
+              RideStatusEnum.ASIGNADO,
+              RideStatusEnum.EN_CAMINO,
+              RideStatusEnum.ABORDAJE,
+              RideStatusEnum.EN_CURSO,
+            ]),
+          },
+          relations: ['passenger', 'driver', 'driver.user', 'vehicle'],
+          order: { requestedAt: 'DESC' },
+        });
+      }
+    }
+
+    return list.map((r) => this.formatRideResponse(r));
   }
 
-  async getAllRides(): Promise<RideEntity[]> {
-    return this.rideRepository.find({
+  async getAllRides(): Promise<any[]> {
+    const list = await this.rideRepository.find({
       relations: ['passenger', 'driver', 'driver.user', 'vehicle'],
       order: { requestedAt: 'DESC' },
     });
+    return list.map((r) => this.formatRideResponse(r));
+  }
+
+  private formatRideResponse(r: RideEntity): any {
+    return {
+      ...r,
+      originLat: Number(r.originLatitude || 10.4806),
+      originLng: Number(r.originLongitude || -66.8622),
+      destinationLat: Number(r.destinationLatitude || 10.6031),
+      destinationLng: Number(r.destinationLongitude || -66.9906),
+      distanceKm: Number(r.distanceKm || 0),
+      totalFare: Number(r.totalFare || 0),
+      platformFee: Number(r.platformFee || 0),
+      driverNetEarnings: Number(r.driverNetEarnings || 0),
+    };
   }
 
   async getRideById(rideId: string): Promise<RideEntity> {

@@ -21,18 +21,22 @@ import {
   Zap,
   FileSpreadsheet,
   AlertOctagon,
+  Star,
+  Award,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getSocket } from '@/lib/socket';
 import { OpenStreetMap } from '@/components/OpenStreetMap';
 import { CreateRideModal } from '@/components/CreateRideModal';
 import { SosAlertModal } from '@/components/SosAlertModal';
+import { FinishAndRateRideModal } from '@/components/FinishAndRateRideModal';
 import { ToastContainer, ToastMessage } from '@/components/Toast';
 
 export default function DispatchPage() {
   const [rides, setRides] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [finishRateRide, setFinishRateRide] = useState<any | null>(null);
   const [selectedRide, setSelectedRide] = useState<any>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
@@ -68,8 +72,16 @@ export default function DispatchPage() {
     try {
       const res = await api.get('/rides/active');
       if (res.data?.data && res.data.data.length > 0) {
-        setRides(res.data.data);
-        if (!selectedRide) setSelectedRide(res.data.data[0]);
+        const formatted = res.data.data.map((r: any) => ({
+          ...r,
+          originLat: Number(r.originLatitude || r.originLat || 10.4806),
+          originLng: Number(r.originLongitude || r.originLng || -66.8622),
+          destinationLat: Number(r.destinationLatitude || r.destinationLat || 10.6031),
+          destinationLng: Number(r.destinationLongitude || r.destinationLng || -66.9906),
+          totalFare: Number(r.totalFare || 50.0),
+        }));
+        setRides(formatted);
+        if (!selectedRide) setSelectedRide(formatted[0]);
       } else {
         // Fallback active rides in Venezuela
         const defaultActive = [
@@ -620,10 +632,10 @@ export default function DispatchPage() {
 
                   {selectedRide.status === 'EN_CURSO' && (
                     <button
-                      onClick={() => handleUpdateStatus(selectedRide.id, 'FINALIZADO')}
-                      className="w-full py-2.5 bg-emerald-400 hover:bg-emerald-500 text-black font-bold rounded-xl flex items-center justify-center gap-2"
+                      onClick={() => setFinishRateRide(selectedRide)}
+                      className="w-full py-3 bg-luxury-gold hover:bg-luxury-gold-hover text-black font-black rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-luxury-gold/20 transition-all text-xs"
                     >
-                      <CheckCircle2 className="w-4 h-4" /> Finalizar Viaje & Liquidar
+                      <CheckCircle2 className="w-4 h-4" /> Finalizar Viaje, Liquidar & Calificar ⭐
                     </button>
                   )}
 
@@ -696,15 +708,28 @@ export default function DispatchPage() {
                     </span>
                   </td>
                   <td className="p-3 text-right">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedRide(r);
-                      }}
-                      className="px-3 py-1 bg-executive-dark hover:bg-executive-border text-luxury-gold font-bold rounded-lg border border-executive-border"
-                    >
-                      Monitorear ➔
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      {r.status === 'EN_CURSO' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFinishRateRide(r);
+                          }}
+                          className="px-2.5 py-1 bg-luxury-gold hover:bg-luxury-gold-hover text-black font-extrabold rounded-lg shadow-sm flex items-center gap-1 text-[11px] transition-all"
+                        >
+                          <Star className="w-3 h-3 fill-black" /> Cerrar & Calificar
+                        </button>
+                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedRide(r);
+                        }}
+                        className="px-3 py-1 bg-executive-dark hover:bg-executive-border text-luxury-gold font-bold rounded-lg border border-executive-border"
+                      >
+                        Monitorear ➔
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -727,6 +752,24 @@ export default function DispatchPage() {
           onSuccess={() => {
             fetchActiveRides();
             addToast('success', 'Viaje VIP Despachado', 'El servicio ha sido registrado con unidades aprobadas');
+          }}
+        />
+      )}
+
+      {/* Modal for Finishing and Rating a Ride */}
+      {finishRateRide && (
+        <FinishAndRateRideModal
+          ride={finishRateRide}
+          bcvRate={bcvRate}
+          onClose={() => setFinishRateRide(null)}
+          onSuccess={(updatedRide) => {
+            addToast(
+              'success',
+              '🏆 Servicio Liquidado & Calificado',
+              `El viaje ha sido cerrado exitosamente y la valoración VIP fue registrada en el expediente del chofer.`,
+            );
+            setFinishRateRide(null);
+            fetchActiveRides();
           }}
         />
       )}

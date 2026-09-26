@@ -27,7 +27,14 @@ export class ReviewsService {
       where: { rideId: dto.rideId },
     });
     if (existing) {
-      throw new ConflictException('Ya existe una valoración registrada para este viaje');
+      existing.rating = dto.rating;
+      existing.cleanlinessRating = dto.cleanlinessRating;
+      existing.punctualityRating = dto.punctualityRating;
+      existing.comfortRating = dto.comfortRating;
+      existing.comment = dto.comment;
+      const updated = await this.reviewRepository.save(existing);
+      await this.recalculateDriverRating(dto.targetId);
+      return updated;
     }
 
     const ride = await this.rideRepository.findOne({ where: { id: dto.rideId } });
@@ -64,7 +71,7 @@ export class ReviewsService {
 
   private async recalculateDriverRating(targetUserId: string): Promise<void> {
     const driver = await this.driverRepository.findOne({
-      where: { userId: targetUserId },
+      where: [{ userId: targetUserId }, { id: targetUserId }],
     });
     if (!driver) return;
 
@@ -72,7 +79,11 @@ export class ReviewsService {
       .createQueryBuilder('review')
       .select('AVG(review.rating)', 'avgRating')
       .addSelect('COUNT(review.id)', 'count')
-      .where('review.target_id = :targetUserId', { targetUserId })
+      .where('review.target_id = :targetUserId OR review.target_id = :driverUserId OR review.target_id = :driverId', {
+        targetUserId,
+        driverUserId: driver.userId,
+        driverId: driver.id,
+      })
       .getRawOne();
 
     if (rawResult && rawResult.avgRating) {
