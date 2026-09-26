@@ -32,7 +32,7 @@ export class VehiclesController {
   constructor(private readonly vehiclesService: VehiclesService) {}
 
   @Post()
-  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.DISPATCHER)
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.FLEET_ADMIN, UserRoleEnum.DISPATCHER)
   @ApiOperation({ summary: 'Registrar nuevo vehículo en la flota (Admin/Despachador)' })
   async createVehicle(@Body() dto: CreateVehicleDto) {
     const vehicle = await this.vehiclesService.createVehicle(dto);
@@ -68,7 +68,7 @@ export class VehiclesController {
   }
 
   @Patch(':id/status')
-  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.DISPATCHER)
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.FLEET_ADMIN, UserRoleEnum.DISPATCHER)
   @ApiOperation({ summary: 'Actualizar estado operativo del vehículo (AVAILABLE, IN_SERVICE, MAINTENANCE)' })
   async updateStatus(
     @Param('id') id: string,
@@ -79,7 +79,7 @@ export class VehiclesController {
   }
 
   @Post(':id/documents')
-  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.DISPATCHER, UserRoleEnum.DRIVER)
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.FLEET_ADMIN, UserRoleEnum.DISPATCHER, UserRoleEnum.DRIVER)
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Subir documento PDF o fotografía al expediente digital del vehículo' })
@@ -110,7 +110,7 @@ export class VehiclesController {
   }
 
   @Patch('documents/:docId/verify')
-  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.DISPATCHER)
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.FLEET_ADMIN, UserRoleEnum.DISPATCHER)
   @ApiOperation({ summary: 'Aprobar o rechazar un documento del expediente del vehículo (Admin/Despachador)' })
   async verifyDocument(
     @Param('docId') docId: string,
@@ -122,7 +122,7 @@ export class VehiclesController {
   }
 
   @Post(':id/release-driver')
-  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.DISPATCHER)
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.FLEET_ADMIN, UserRoleEnum.DISPATCHER)
   @ApiOperation({ summary: 'Liberar conductor asignado a este vehículo y retornar unidad a disponible' })
   async releaseDriverFromVehicle(
     @Param('id') vehicleId: string,
