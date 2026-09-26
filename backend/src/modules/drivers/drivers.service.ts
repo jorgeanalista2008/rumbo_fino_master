@@ -216,10 +216,38 @@ export class DriversService {
     return driver;
   }
 
-  async findAllDrivers(): Promise<DriverEntity[]> {
-    return this.driverRepository.find({
+  async findAllDrivers(): Promise<any[]> {
+    const drivers = await this.driverRepository.find({
       relations: ['user', 'currentVehicle'],
       order: { createdAt: 'DESC' },
+    });
+
+    const docs = await this.driverDocRepository.find({
+      order: { createdAt: 'DESC' },
+    });
+
+    const balances = await this.balanceRepository.find();
+
+    return drivers.map((d) => {
+      const dDocs = docs.filter((doc) => doc.driverId === d.id);
+      const dBalance = balances.find((b) => b.driverId === d.id);
+
+      return {
+        ...d,
+        documents: dDocs,
+        documentStats: {
+          total: dDocs.length,
+          approved: dDocs.filter((doc) => doc.status === DocumentStatusEnum.APPROVED).length,
+          pending: dDocs.filter((doc) => doc.status === DocumentStatusEnum.PENDING).length,
+          rejected: dDocs.filter((doc) => doc.status === DocumentStatusEnum.REJECTED).length,
+        },
+        balance: dBalance || {
+          currentBalance: 0,
+          pendingPayout: 0,
+          totalEarned: 0,
+          totalCommissionPaid: 0,
+        },
+      };
     });
   }
 

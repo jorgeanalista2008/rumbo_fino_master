@@ -35,3 +35,4 @@ Thumbs.db
 
 # Uploads test artifacts
 backend/uploads/drivers/*.pdf
+backend/uploads/vehicles/*
