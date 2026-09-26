@@ -88,10 +88,15 @@ export default function DispatchPage() {
   const loadAllData = async () => {
     setLoading(true);
     try {
-      const [ridesRes, driversRes] = await Promise.all([
+      const [ridesRes, driversRes, bcvRes] = await Promise.all([
         api.get('/rides'),
         api.get('/drivers'),
+        api.get('/financials/exchange-rates/current').catch(() => ({ data: null })),
       ]);
+
+      if (bcvRes.data?.data?.rate) {
+        setBcvRate(Number(bcvRes.data.data.rate));
+      }
 
       if (driversRes.data?.data) {
         setDrivers(driversRes.data.data);
@@ -131,6 +136,14 @@ export default function DispatchPage() {
 
       socket.on('connect', () => setIsWsConnected(true));
       socket.on('disconnect', () => setIsWsConnected(false));
+
+      socket.on('financials:bcv_rate_updated', (data: any) => {
+        if (data.rate) {
+          const newRate = Number(data.rate);
+          setBcvRate(newRate);
+          addToast('info', 'Tasa BCV Actualizada', `Nueva tasa oficial activa: Bs. ${newRate.toFixed(2)} / USD (${data.source || 'BCV'})`);
+        }
+      });
 
       socket.on('ride:global_status', (data: any) => {
         setRides((prev) =>

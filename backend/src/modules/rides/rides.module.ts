@@ -25,6 +25,6 @@ import { RidesGateway } from './presentation/rides.gateway';
   ],
   controllers: [RidesController],
   providers: [RidesService, RidesGateway],
-  exports: [RidesService],
+  exports: [RidesService, RidesGateway],
 })
 export class RidesModule {}

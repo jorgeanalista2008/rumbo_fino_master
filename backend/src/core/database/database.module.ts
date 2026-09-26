@@ -13,6 +13,7 @@ import { DriverVehicleAssignmentEntity } from './entities/driver-vehicle-assignm
 import { DriverBalanceEntity } from './entities/driver-balance.entity';
 import { TransactionEntity } from './entities/transaction.entity';
 import { ReviewEntity } from './entities/review.entity';
+import { ExchangeRateEntity } from './entities/exchange-rate.entity';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { ReviewEntity } from './entities/review.entity';
           DriverBalanceEntity,
           TransactionEntity,
           ReviewEntity,
+          ExchangeRateEntity,
         ],
         synchronize: false,
         logging: process.env.NODE_ENV === 'development',

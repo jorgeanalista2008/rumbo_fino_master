@@ -108,4 +108,11 @@ export class RidesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       timestamp: new Date().toISOString(),
     });
   }
+
+  emitBcvRateUpdated(rateData: any) {
+    this.server.emit('financials:bcv_rate_updated', {
+      ...rateData,
+      timestamp: new Date().toISOString(),
+    });
+  }
 }

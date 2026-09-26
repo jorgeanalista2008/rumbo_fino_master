@@ -11,6 +11,8 @@ import {
   DollarSign,
   ShieldCheck,
   Award,
+  TrendingUp,
+  Coins,
 } from 'lucide-react';
 
 const navigation = [
@@ -19,6 +21,7 @@ const navigation = [
   { name: 'Choferes y Turnos', href: '/dashboard/drivers', icon: Users },
   { name: 'Monitoreo / Despacho', href: '/dashboard/dispatch', icon: MapPin },
   { name: 'Finanzas y Recaudación', href: '/dashboard/financials', icon: DollarSign },
+  { name: 'Tasas Oficiales BCV', href: '/dashboard/exchange-rates', icon: TrendingUp },
 ];
 
 export default function Sidebar() {
