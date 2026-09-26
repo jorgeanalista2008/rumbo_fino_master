@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -19,8 +19,7 @@ import {
   Building2,
   Headphones,
 } from 'lucide-react';
-import { api, getAuthUser } from '@/lib/api';
-import { getSocket } from '@/lib/socket';
+import { usePermissions } from '@/lib/PermissionsContext';
 
 export interface NavItem {
   name: string;
@@ -50,74 +49,7 @@ const ROLE_BADGES: Record<string, { label: string; color: string; icon: any }> =
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  const [allowedRoutes, setAllowedRoutes] = useState<string[]>([]);
-  const [loadingPermissions, setLoadingPermissions] = useState<boolean>(true);
-
-  const fetchPermissions = async () => {
-    const user = getAuthUser();
-    if (user) {
-      setCurrentUser(user);
-
-      if (user.role === 'SUPER_ADMIN') {
-        setAllowedRoutes(ALL_NAVIGATION_ITEMS.map((item) => item.href));
-        setLoadingPermissions(false);
-        return;
-      }
-
-      try {
-        const res = await api.get<any>('/roles-permissions/my-permissions');
-        const permData = res.data?.data || res.data;
-        if (permData && Array.isArray(permData.allowedRoutes)) {
-          setAllowedRoutes(permData.allowedRoutes);
-        } else {
-          // Fallback based on role
-          if (user.role === 'FLEET_ADMIN') {
-            setAllowedRoutes(['/dashboard', '/dashboard/vehicles', '/dashboard/drivers']);
-          } else if (user.role === 'DISPATCHER') {
-            setAllowedRoutes(['/dashboard', '/dashboard/dispatch', '/dashboard/drivers', '/dashboard/vehicles']);
-          } else if (user.role === 'DRIVER') {
-            setAllowedRoutes(['/dashboard/drivers']);
-          } else {
-            setAllowedRoutes(['/dashboard', '/dashboard/dispatch']);
-          }
-        }
-      } catch (err) {
-        console.warn('Usando permisos locales para el menú:', err);
-        if (user.role === 'FLEET_ADMIN') {
-          setAllowedRoutes(['/dashboard', '/dashboard/vehicles', '/dashboard/drivers']);
-        } else if (user.role === 'DISPATCHER') {
-          setAllowedRoutes(['/dashboard', '/dashboard/dispatch', '/dashboard/drivers', '/dashboard/vehicles']);
-        } else {
-          setAllowedRoutes(['/dashboard']);
-        }
-      } finally {
-        setLoadingPermissions(false);
-      }
-    } else {
-      // Default to all for superadmin development preview
-      setAllowedRoutes(ALL_NAVIGATION_ITEMS.map((item) => item.href));
-      setLoadingPermissions(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchPermissions();
-
-    const socket = getSocket();
-    if (socket) {
-      const handleRoleUpdate = (data: any) => {
-        const user = getAuthUser();
-        if (user && user.role === data.role) {
-          fetchPermissions();
-        }
-      };
-      socket.on('system:roles_permissions_updated', handleRoleUpdate);
-      return () => {
-        socket.off('system:roles_permissions_updated', handleRoleUpdate);
-      };
-    }
-  }, []);
+  const { user, permissions, hasRouteAccess } = usePermissions();
 
   const handleLogout = () => {
     localStorage.removeItem('rumbo_fino_token');
@@ -127,11 +59,12 @@ export default function Sidebar() {
 
   // Filter navigation items by allowed routes
   const visibleNavItems = ALL_NAVIGATION_ITEMS.filter((item) => {
-    if (!currentUser || currentUser.role === 'SUPER_ADMIN') return true;
-    return allowedRoutes.includes(item.href);
+    if (!user || user.role === 'SUPER_ADMIN') return true;
+    return hasRouteAccess(item.href);
   });
 
-  const roleBadgeInfo = currentUser?.role ? ROLE_BADGES[currentUser.role] || ROLE_BADGES.SUPER_ADMIN : ROLE_BADGES.SUPER_ADMIN;
+  const roleKey = user?.role || 'SUPER_ADMIN';
+  const roleBadgeInfo = ROLE_BADGES[roleKey] || ROLE_BADGES.SUPER_ADMIN;
   const RoleIcon = roleBadgeInfo.icon;
 
   return (
@@ -191,10 +124,10 @@ export default function Sidebar() {
           </div>
 
           <div className="text-xs font-bold text-white truncate">
-            {currentUser?.firstName || 'Alexander'} {currentUser?.lastName || 'Vance'}
+            {user?.firstName || 'Alexander'} {user?.lastName || 'Vance'}
           </div>
           <div className="text-[10px] text-gray-400 font-mono truncate">
-            {currentUser?.email || 'admin@rumbofino.com'}
+            {user?.email || 'admin@rumbofino.com'}
           </div>
         </div>
 
