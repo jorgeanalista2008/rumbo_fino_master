@@ -1,0 +1,14 @@
+name: passenger_app
+description: VIP Passenger App for Rumbo Fino
+version: 1.0.0+1
+publish_to: none
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: ">=3.10.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  core_ui:
+    path: '../../packages/core_ui'

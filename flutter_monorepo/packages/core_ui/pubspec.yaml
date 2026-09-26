@@ -1,0 +1,12 @@
+name: core_ui
+description: Design System, Executive Dark/Gold Theme, VIP UI Widgets for Rumbo Fino
+version: 1.0.0
+publish_to: none
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: ">=3.10.0"
+
+dependencies:
+  flutter:
+    sdk: flutter

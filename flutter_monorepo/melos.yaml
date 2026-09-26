@@ -1,0 +1,15 @@
+name: rumbo_fino_monorepo
+repository: https://github.com/jorgeanalista2008/rumbo_fino_master
+
+packages:
+  - packages/**
+  - apps/**
+
+scripts:
+  analyze:
+    run: melos exec -- flutter analyze
+    description: Run flutter analyze across all packages and apps.
+
+  test:
+    run: melos exec -- flutter test
+    description: Run flutter test across all packages and apps.
