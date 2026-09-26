@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef } from 'react';
 
-interface MarkerItem {
+export interface MarkerItem {
   id: string;
   lat: number;
   lng: number;

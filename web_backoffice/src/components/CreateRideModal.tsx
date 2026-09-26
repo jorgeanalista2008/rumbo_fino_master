@@ -49,11 +49,13 @@ export function CreateRideModal({
   unitType = 'KM',
   bcvRate = 65.5,
 }: CreateRideModalProps) {
-  const [passengerId, setPassengerId] = useState('a1b2c3d4-e5f6-7890-abcd-1234567890ab');
+  const [passengerId, setPassengerId] = useState('');
   const [passengerName, setPassengerName] = useState('Dr. Alejandro Rossi');
   const [passengerPhone, setPassengerPhone] = useState('+58 412 987 6543');
 
   const [categoryRequested, setCategoryRequested] = useState('EXECUTIVE_SEDAN');
+  const [selectedDriverId, setSelectedDriverId] = useState('');
+  const [drivers, setDrivers] = useState<any[]>([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState('');
   const [dispatchVehicles, setDispatchVehicles] = useState<any[]>([]);
   const [autoDispatched, setAutoDispatched] = useState(false);
@@ -75,28 +77,31 @@ export function CreateRideModal({
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    const fetchDispatchReadyVehicles = async () => {
+    const fetchData = async () => {
       try {
-        const res = await api.get('/vehicles/dispatch-ready');
-        if (res.data?.data && res.data.data.length > 0) {
-          setDispatchVehicles(res.data.data);
-          setSelectedVehicleId(res.data.data[0].id);
-        } else {
-          // Default fallback vehicles approved for dispatch
-          const fallbackVehicles = [
-            { id: 'veh-1', make: 'Mercedes-Benz', model: 'E-Class 350', licensePlate: 'VIP-777', status: 'AVAILABLE', lat: 10.485, lng: -66.865 },
-            { id: 'veh-2', make: 'BMW', model: 'X5 M-Sport', licensePlate: 'VIP-999', status: 'AVAILABLE', lat: 10.490, lng: -66.850 },
-            { id: 'veh-3', make: 'Mercedes-Benz', model: 'V-Class VIP', licensePlate: 'VAN-100', status: 'AVAILABLE', lat: 10.470, lng: -66.870 },
-          ];
-          setDispatchVehicles(fallbackVehicles);
-          setSelectedVehicleId(fallbackVehicles[0].id);
+        const [vehRes, drvRes] = await Promise.all([
+          api.get('/vehicles'),
+          api.get('/drivers'),
+        ]);
+
+        if (vehRes.data?.data && vehRes.data.data.length > 0) {
+          setDispatchVehicles(vehRes.data.data);
+          setSelectedVehicleId(vehRes.data.data[0].id);
+        }
+
+        if (drvRes.data?.data && drvRes.data.data.length > 0) {
+          setDrivers(drvRes.data.data);
+          setSelectedDriverId(drvRes.data.data[0].id);
+          if (drvRes.data.data[0].currentVehicleId) {
+            setSelectedVehicleId(drvRes.data.data[0].currentVehicleId);
+          }
         }
       } catch (err) {
-        console.warn('Error al obtener vehículos habilitados para despacho:', err);
+        console.warn('Error cargando recursos de despacho:', err);
       }
     };
 
-    fetchDispatchReadyVehicles();
+    fetchData();
   }, []);
 
   // Distance Calculation (Haversine)
@@ -167,7 +172,11 @@ export function CreateRideModal({
 
     try {
       await api.post('/rides', {
-        passengerId,
+        passengerId: passengerId || undefined,
+        passengerName,
+        passengerPhone,
+        driverId: selectedDriverId || undefined,
+        vehicleId: selectedVehicleId || undefined,
         categoryRequested,
         originAddress,
         originLat,
@@ -176,7 +185,7 @@ export function CreateRideModal({
         destinationLat,
         destinationLng,
         paymentMethod,
-        vehicleId: selectedVehicleId,
+        totalFare,
       });
 
       onSuccess();
@@ -202,7 +211,7 @@ export function CreateRideModal({
             <div>
               <h2 className="text-xl font-bold text-white">Solicitar & Despachar Nuevo Viaje VIP</h2>
               <p className="text-xs text-gray-400">
-                Búsqueda predictiva con autocompletado en Venezuela y auto-asignación por cercanía
+                Búsqueda predictiva con autocompletado en Venezuela, asignación de chofer y auto-cálculo de tarifa
               </p>
             </div>
           </div>
@@ -216,12 +225,12 @@ export function CreateRideModal({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6 text-xs max-h-[80vh] overflow-y-auto">
-          {/* Section 1: Passenger & Vehicle Assignment */}
+          {/* Section 1: Passenger, Driver & Vehicle Assignment */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-extrabold text-luxury-gold uppercase tracking-wider flex items-center gap-2">
                 <User className="w-4 h-4" />
-                1. Pasajero & Vehículo Habilitado
+                1. Pasajero, Chofer & Unidad Asignada
               </h3>
 
               <button
@@ -234,9 +243,9 @@ export function CreateRideModal({
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="text-gray-300 font-bold block mb-1">Nombre Completo Pasajero</label>
+                <label className="text-gray-300 font-bold block mb-1">Nombre del Pasajero</label>
                 <input
                   type="text"
                   required
@@ -244,6 +253,29 @@ export function CreateRideModal({
                   onChange={(e) => setPassengerName(e.target.value)}
                   className="w-full bg-executive-dark border border-executive-border rounded-xl p-3 text-white focus:outline-none focus:border-luxury-gold"
                 />
+              </div>
+
+              <div>
+                <label className="text-gray-300 font-bold block mb-1">Chofer Conductor Asignado</label>
+                <select
+                  value={selectedDriverId}
+                  onChange={(e) => {
+                    const drvId = e.target.value;
+                    setSelectedDriverId(drvId);
+                    const found = drivers.find((d) => d.id === drvId);
+                    if (found?.currentVehicleId) {
+                      setSelectedVehicleId(found.currentVehicleId);
+                    }
+                  }}
+                  className="w-full bg-executive-dark border border-executive-border rounded-xl p-3 text-white focus:outline-none focus:border-luxury-gold font-medium"
+                >
+                  <option value="">-- Sin Chofer Asignado (Pendiente) --</option>
+                  {drivers.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.user?.firstName} {d.user?.lastName} (⭐ {Number(d.ratingAvg || 5).toFixed(1)}) {d.isOnline ? '🟢 Online' : ''}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
@@ -266,6 +298,7 @@ export function CreateRideModal({
                     autoDispatched ? 'border-amber-500' : 'border-executive-border'
                   }`}
                 >
+                  <option value="">-- Sin Vehículo --</option>
                   {dispatchVehicles.map((v) => (
                     <option key={v.id} value={v.id}>
                       {v.make} {v.model} ({v.licensePlate}) - HABILITADO ✓

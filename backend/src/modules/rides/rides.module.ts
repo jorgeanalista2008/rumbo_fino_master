@@ -5,6 +5,8 @@ import { RideLocationEntity } from '../../core/database/entities/ride-location.e
 import { DriverEntity } from '../../core/database/entities/driver.entity';
 import { DriverBalanceEntity } from '../../core/database/entities/driver-balance.entity';
 import { TransactionEntity } from '../../core/database/entities/transaction.entity';
+import { UserEntity } from '../../core/database/entities/user.entity';
+import { VehicleEntity } from '../../core/database/entities/vehicle.entity';
 import { RidesController } from './presentation/rides.controller';
 import { RidesService } from './application/services/rides.service';
 import { RidesGateway } from './presentation/rides.gateway';
@@ -17,6 +19,8 @@ import { RidesGateway } from './presentation/rides.gateway';
       DriverEntity,
       DriverBalanceEntity,
       TransactionEntity,
+      UserEntity,
+      VehicleEntity,
     ]),
   ],
   controllers: [RidesController],

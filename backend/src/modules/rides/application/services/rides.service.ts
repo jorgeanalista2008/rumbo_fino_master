@@ -5,6 +5,8 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 
+import { UserEntity } from '../../../../core/database/entities/user.entity';
+import { VehicleEntity } from '../../../../core/database/entities/vehicle.entity';
 import { RideEntity } from '../../../../core/database/entities/ride.entity';
 import { RideLocationEntity } from '../../../../core/database/entities/ride-location.entity';
 import { DriverEntity } from '../../../../core/database/entities/driver.entity';
@@ -31,11 +33,36 @@ export class RidesService {
     private readonly balanceRepository: Repository<DriverBalanceEntity>,
     @InjectRepository(TransactionEntity)
     private readonly transactionRepository: Repository<TransactionEntity>,
+    @InjectRepository(UserEntity)
+    private readonly userRepository: Repository<UserEntity>,
+    @InjectRepository(VehicleEntity)
+    private readonly vehicleRepository: Repository<VehicleEntity>,
     private readonly ridesGateway: RidesGateway,
     private readonly redisService: RedisService,
   ) {}
 
-  async createRide(dto: CreateRideDto): Promise<RideEntity> {
+  async createRide(dto: CreateRideDto): Promise<any> {
+    // 1. Resolve valid passenger
+    let passengerId = dto.passengerId;
+    if (passengerId) {
+      const exists = await this.userRepository.findOne({ where: { id: passengerId } });
+      if (!exists) passengerId = undefined;
+    }
+
+    if (!passengerId) {
+      // Find first passenger user or super admin
+      const passengerUser = await this.userRepository.findOne({
+        where: { role: 'PASSENGER' as any },
+      });
+      if (passengerUser) {
+        passengerId = passengerUser.id;
+      } else {
+        const anyUser = await this.userRepository.findOne({});
+        passengerId = anyUser?.id || 'a1b2c3d4-e5f6-7890-abcd-1234567890ab';
+      }
+    }
+
+    // 2. Resolve fares
     const baseFare = 5.0;
     const distanceKm = this.calculateDistanceKm(
       dto.originLat,
@@ -46,12 +73,32 @@ export class RidesService {
     const distanceFare = distanceKm * 1.5;
     const timeFare = 2.0;
     const surgeMultiplier = 1.0;
-    const totalFare = Number(((baseFare + distanceFare + timeFare) * surgeMultiplier).toFixed(2));
+    const calculatedTotalFare = Number(((baseFare + distanceFare + timeFare) * surgeMultiplier).toFixed(2));
+    const totalFare = Number(dto.totalFare && dto.totalFare > 0 ? dto.totalFare : calculatedTotalFare);
     const platformFee = Number((totalFare * 0.15).toFixed(2));
     const driverNetEarnings = Number((totalFare - platformFee).toFixed(2));
 
+    // 3. Resolve Driver & Vehicle if pre-assigned
+    let driverId = dto.driverId || undefined;
+    let vehicleId = dto.vehicleId || undefined;
+    let initialStatus = RideStatusEnum.SOLICITADO;
+
+    if (driverId) {
+      const driver = await this.driverRepository.findOne({ where: { id: driverId }, relations: ['currentVehicle'] });
+      if (driver) {
+        if (!vehicleId && driver.currentVehicleId) {
+          vehicleId = driver.currentVehicleId;
+        }
+        initialStatus = RideStatusEnum.ASIGNADO;
+      } else {
+        driverId = undefined;
+      }
+    }
+
     const ride = this.rideRepository.create({
-      passengerId: dto.passengerId,
+      passengerId,
+      driverId,
+      vehicleId,
       categoryRequested: dto.categoryRequested,
       originAddress: dto.originAddress,
       originLatitude: dto.originLat,
@@ -69,30 +116,46 @@ export class RidesService {
       platformFee,
       driverNetEarnings,
       paymentMethod: dto.paymentMethod,
-      status: RideStatusEnum.SOLICITADO,
+      status: initialStatus,
       requestedAt: new Date(),
+      acceptedAt: driverId ? new Date() : undefined,
     });
 
     const savedRide = await this.rideRepository.save(ride);
 
-    this.ridesGateway.emitStatusChange(savedRide.id, RideStatusEnum.SOLICITADO, savedRide);
+    // Fetch enriched ride
+    const enriched = await this.getRideById(savedRide.id);
 
-    const nearbyDriverIds = await this.redisService.getNearbyDrivers(
-      dto.originLat,
-      dto.originLng,
-      10,
-    );
+    this.ridesGateway.emitStatusChange(savedRide.id, initialStatus, enriched);
 
-    if (nearbyDriverIds && nearbyDriverIds.length > 0) {
-      this.ridesGateway.server.emit('ride:dispatch_offer', {
-        rideId: savedRide.id,
-        nearbyDrivers: nearbyDriverIds,
-        originAddress: dto.originAddress,
-        totalFare,
-      });
+    return this.formatRideResponse(enriched);
+  }
+
+  async assignDriverToRide(rideId: string, driverId: string, vehicleId?: string): Promise<any> {
+    const ride = await this.rideRepository.findOne({ where: { id: rideId } });
+    if (!ride) {
+      throw new NotFoundException(`Viaje con ID '${rideId}' no encontrado`);
     }
 
-    return savedRide;
+    const driver = await this.driverRepository.findOne({
+      where: { id: driverId },
+      relations: ['currentVehicle'],
+    });
+    if (!driver) {
+      throw new NotFoundException(`Chofer con ID '${driverId}' no encontrado`);
+    }
+
+    ride.driverId = driverId;
+    ride.vehicleId = vehicleId || driver.currentVehicleId || ride.vehicleId;
+    ride.status = RideStatusEnum.ASIGNADO;
+    ride.acceptedAt = new Date();
+
+    const updated = await this.rideRepository.save(ride);
+    const enriched = await this.getRideById(updated.id);
+
+    this.ridesGateway.emitStatusChange(rideId, RideStatusEnum.ASIGNADO, enriched);
+
+    return this.formatRideResponse(enriched);
   }
 
   async updateRideStatus(

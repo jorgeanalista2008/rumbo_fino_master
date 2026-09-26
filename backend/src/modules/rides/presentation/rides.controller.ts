@@ -50,6 +50,18 @@ export class RidesController {
     return ApiResponseDto.ok(result, `Estado del viaje actualizado a ${status}`);
   }
 
+  @Post(':id/assign-driver')
+  @Roles(UserRoleEnum.DISPATCHER, UserRoleEnum.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Asignar chofer y vehículo a un viaje solicitado' })
+  async assignDriver(
+    @Param('id') rideId: string,
+    @Body('driverId') driverId: string,
+    @Body('vehicleId') vehicleId?: string,
+  ) {
+    const result = await this.ridesService.assignDriverToRide(rideId, driverId, vehicleId);
+    return ApiResponseDto.ok(result, 'Chofer asignado exitosamente al viaje');
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Consultar detalle y estado actual de un viaje' })
   async getRide(@Param('id') rideId: string) {
