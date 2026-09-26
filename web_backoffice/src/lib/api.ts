@@ -9,7 +9,7 @@ export const api = axios.create({
   },
 });
 
-// Request Interceptor: Attach Bearer Token from localStorage
+// Request Interceptor: Attach Bearer Token from localStorage and handle FormData
 api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
     const token = localStorage.getItem('rumbo_fino_token');
@@ -17,6 +17,12 @@ api.interceptors.request.use((config) => {
       config.headers.Authorization = `Bearer ${token}`;
     }
   }
+
+  // If payload is FormData (e.g. file uploads), remove Content-Type so browser sets boundary automatically
+  if (config.data instanceof FormData) {
+    delete config.headers['Content-Type'];
+  }
+
   return config;
 });
 
@@ -26,7 +32,6 @@ api.interceptors.response.use(
   (error) => {
     if (typeof window !== 'undefined' && error.response?.status === 401) {
       console.warn('⚠️ Token caducado o no válido (401 Unauthorized) en petición secundaria.');
-      // Only redirect if explicit user action failed, never force-bounce on background polling!
       const user = localStorage.getItem('rumbo_fino_user');
       if (!user && !window.location.pathname.startsWith('/login')) {
         localStorage.removeItem('rumbo_fino_token');
