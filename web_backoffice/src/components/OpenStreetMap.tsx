@@ -12,6 +12,20 @@ export interface MarkerItem {
   status?: string;
 }
 
+export interface MapOverlayCardData {
+  id?: string;
+  originAddress?: string;
+  destinationAddress?: string;
+  passengerName?: string;
+  passengerPhone?: string;
+  driverName?: string;
+  vehicleInfo?: string;
+  totalFare?: number | string;
+  bcvFare?: number | string;
+  status?: string;
+  paymentMethod?: string;
+}
+
 interface OpenStreetMapProps {
   centerLat?: number;
   centerLng?: number;
@@ -21,6 +35,7 @@ interface OpenStreetMapProps {
   onMarkerClick?: (marker: MarkerItem) => void;
   selectionMode?: 'pickup' | 'destination' | 'none';
   onLocationSelect?: (lat: number, lng: number, mode: 'pickup' | 'destination', placeName?: string) => void;
+  activeCardData?: MapOverlayCardData | null;
 }
 
 // Bounding Box Geográfico Estricto de Venezuela
@@ -38,11 +53,13 @@ export function OpenStreetMap({
   onMarkerClick,
   selectionMode = 'none',
   onLocationSelect,
+  activeCardData,
 }: OpenStreetMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletInstance = useRef<any>(null);
   const markersGroup = useRef<any>(null);
   const selectionModeRef = useRef(selectionMode);
+  const [isCardMinimized, setIsCardMinimized] = React.useState(false);
 
   useEffect(() => {
     selectionModeRef.current = selectionMode;
@@ -58,6 +75,37 @@ export function OpenStreetMap({
       link.rel = 'stylesheet';
       link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
       document.head.appendChild(link);
+    }
+
+    // Inject Custom Popup Dark VIP Styles
+    const styleId = 'leaflet-luxury-styles';
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.innerHTML = `
+        .leaflet-popup-content-wrapper {
+          background: #0B1120 !important;
+          color: #FFF !important;
+          border: 1px solid rgba(212, 175, 55, 0.4) !important;
+          border-radius: 16px !important;
+          box-shadow: 0 15px 35px rgba(0,0,0,0.85) !important;
+          padding: 0 !important;
+        }
+        .leaflet-popup-content {
+          margin: 0 !important;
+          line-height: 1.4 !important;
+        }
+        .leaflet-popup-tip {
+          background: #0B1120 !important;
+          border-right: 1px solid rgba(212, 175, 55, 0.4);
+          border-bottom: 1px solid rgba(212, 175, 55, 0.4);
+        }
+        .leaflet-container a.leaflet-popup-close-button {
+          color: #D4AF37 !important;
+          padding: 6px !important;
+        }
+      `;
+      document.head.appendChild(style);
     }
 
     const loadLeafletScript = async () => {
@@ -124,7 +172,7 @@ export function OpenStreetMap({
         });
       }
 
-      // Render Markers
+      // Render Compact Luxury Circular Markers
       if (markersGroup.current && L) {
         markersGroup.current.clearLayers();
 
@@ -132,42 +180,47 @@ export function OpenStreetMap({
           let customHtml = '';
           if (m.type === 'vehicle') {
             customHtml = `
-              <div style="background-color: #D4AF37; color: #000; font-weight: bold; font-size: 10px; padding: 4px 8px; border-radius: 12px; border: 2px solid #FFF; box-shadow: 0 4px 10px rgba(0,0,0,0.5); display: flex; items-center; gap: 4px; white-space: nowrap;">
-                🚗 <span>${m.title}</span>
+              <div style="position:relative; display:flex; align-items:center; justify-content:center; width:38px; height:38px; background:linear-gradient(135deg, #FAD961 0%, #D4AF37 50%, #997819 100%); border-radius:50%; border:2.5px solid #FFFFFF; box-shadow:0 6px 16px rgba(0,0,0,0.6), 0 0 14px rgba(212,175,55,0.7); cursor:pointer; transform:scale(1); transition:all 0.2s;">
+                <span style="font-size:18px; filter:drop-shadow(0 2px 3px rgba(0,0,0,0.4));">🚗</span>
+                <div style="position:absolute; inset:-5px; border-radius:50%; border:1.5px solid #D4AF37; animation:ping 2s cubic-bezier(0, 0, 0.2, 1) infinite; opacity:0.6; pointer-events:none;"></div>
               </div>
             `;
           } else if (m.type === 'pickup') {
             customHtml = `
-              <div style="background-color: #10B981; color: #FFF; font-weight: bold; font-size: 10px; padding: 4px 8px; border-radius: 12px; border: 2px solid #FFF; box-shadow: 0 4px 10px rgba(0,0,0,0.5); white-space: nowrap;">
-                📍 Origen: ${m.title}
+              <div style="position:relative; display:flex; align-items:center; justify-content:center; width:34px; height:34px; background:linear-gradient(135deg, #34D399 0%, #10B981 100%); border-radius:50%; border:2px solid #FFFFFF; box-shadow:0 6px 14px rgba(0,0,0,0.6), 0 0 12px rgba(16,185,129,0.5); cursor:pointer;">
+                <span style="font-size:16px;">📍</span>
               </div>
             `;
           } else {
             customHtml = `
-              <div style="background-color: #EF4444; color: #FFF; font-weight: bold; font-size: 10px; padding: 4px 8px; border-radius: 12px; border: 2px solid #FFF; box-shadow: 0 4px 10px rgba(0,0,0,0.5); white-space: nowrap;">
-                🏁 Destino: ${m.title}
+              <div style="position:relative; display:flex; align-items:center; justify-content:center; width:34px; height:34px; background:linear-gradient(135deg, #F87171 0%, #EF4444 100%); border-radius:50%; border:2px solid #FFFFFF; box-shadow:0 6px 14px rgba(0,0,0,0.6), 0 0 12px rgba(239,68,68,0.5); cursor:pointer;">
+                <span style="font-size:16px;">🏁</span>
               </div>
             `;
           }
 
           const icon = L.divIcon({
             html: customHtml,
-            className: 'custom-leaflet-marker',
-            iconSize: [120, 30],
-            iconAnchor: [60, 15],
+            className: 'custom-luxury-pin-container',
+            iconSize: [38, 38],
+            iconAnchor: [19, 19],
           });
 
           const marker = L.marker([m.lat, m.lng], { icon });
 
-          if (m.subtitle || m.status) {
-            marker.bindPopup(`
-              <div style="color: #000; font-family: sans-serif; font-size: 12px;">
-                <strong>${m.title}</strong><br/>
-                <span style="color: #555;">${m.subtitle || ''}</span><br/>
-                ${m.status ? `<span style="display:inline-block; margin-top:4px; padding:2px 6px; background:#D4AF37; color:#000; font-weight:bold; border-radius:4px; font-size:10px;">ESTADO: ${m.status}</span>` : ''}
+          const popupHeaderType = m.type === 'vehicle' ? '🚗 UNIDAD VIP MÓVIL' : m.type === 'pickup' ? '📍 PUNTO DE ABORDAJE' : '🏁 DESTINO FINAL';
+          const popupColor = m.type === 'vehicle' ? '#D4AF37' : m.type === 'pickup' ? '#10B981' : '#EF4444';
+
+          marker.bindPopup(`
+            <div style="padding:12px; min-width:210px; font-family:system-ui,-apple-system,sans-serif;">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:6px;">
+                <span style="font-size:10px; font-weight:900; color:${popupColor}; text-transform:uppercase; letter-spacing:0.5px;">${popupHeaderType}</span>
+                ${m.status ? `<span style="background:rgba(212,175,55,0.15); color:#D4AF37; font-size:9px; font-weight:800; padding:2px 6px; border-radius:6px; border:1px solid rgba(212,175,55,0.3);">${m.status}</span>` : ''}
               </div>
-            `);
-          }
+              <div style="font-size:12px; font-weight:bold; color:#FFFFFF; margin-bottom:4px;">${m.title}</div>
+              ${m.subtitle ? `<div style="font-size:11px; color:#94A3B8; font-weight:500;">${m.subtitle}</div>` : ''}
+            </div>
+          `);
 
           if (onMarkerClick) {
             marker.on('click', () => onMarkerClick(m));
@@ -181,7 +234,7 @@ export function OpenStreetMap({
           const polyline = L.polyline(routePolyline, {
             color: '#D4AF37',
             weight: 4,
-            opacity: 0.8,
+            opacity: 0.85,
             dashArray: '8, 8',
           });
           markersGroup.current.addLayer(polyline);
@@ -193,23 +246,112 @@ export function OpenStreetMap({
   }, [centerLat, centerLng, zoom, markers, routePolyline, onLocationSelect, selectionMode]);
 
   return (
-    <div className="w-full h-full min-h-[420px] rounded-2xl overflow-hidden relative border border-executive-border shadow-xl">
+    <div className="w-full h-full min-h-[420px] rounded-3xl overflow-hidden relative border border-executive-border shadow-xl">
       <div ref={mapRef} className="w-full h-full z-10 cursor-crosshair" />
 
       {/* Map Header Attribution Badge */}
-      <div className="absolute top-3 left-3 z-20 bg-executive-dark/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-executive-border text-[11px] text-gray-300 font-bold flex items-center gap-2">
+      <div className="absolute top-3 left-3 z-20 bg-executive-dark/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-executive-border text-[11px] text-gray-300 font-bold flex items-center gap-2 shadow-lg">
         <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
         🇻🇪 Red de Telemetría VIP Rumbo Fino Venezuela
       </div>
 
       {/* Interactive Selection Helper Overlay */}
       {selectionMode !== 'none' && (
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 bg-executive-dark/95 backdrop-blur-md px-4 py-2 rounded-xl border border-luxury-gold text-xs font-bold text-luxury-gold shadow-2xl flex items-center gap-2 animate-bounce">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 bg-executive-dark/95 backdrop-blur-md px-4 py-2 rounded-xl border border-luxury-gold text-xs font-bold text-luxury-gold shadow-2xl flex items-center gap-2 animate-bounce">
           <span>
             {selectionMode === 'pickup'
               ? '📍 Haga clic en cualquier punto de Venezuela para marcar el Origen (Abordaje)'
               : '🏁 Haga clic en cualquier punto de Venezuela para marcar el Destino'}
           </span>
+        </div>
+      )}
+
+      {/* FLOATING VIP TELEMETRY CARD OVERLAY ON MAP */}
+      {activeCardData && (
+        <div className="absolute bottom-4 left-4 z-20 max-w-sm w-[calc(100%-2rem)] sm:w-80 bg-executive-dark/95 backdrop-blur-xl border border-luxury-gold/40 rounded-2xl p-4 shadow-2xl transition-all duration-300">
+          <div className="flex items-center justify-between border-b border-executive-border/60 pb-2 mb-2.5">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-luxury-gold animate-ping" />
+              <span className="text-[11px] font-black text-white uppercase tracking-wider">
+                Expediente de Ruta
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              {activeCardData.status && (
+                <span className="px-2 py-0.5 bg-luxury-gold/15 text-luxury-gold border border-luxury-gold/30 rounded-md text-[9px] font-black uppercase">
+                  {activeCardData.status}
+                </span>
+              )}
+              <button
+                onClick={() => setIsCardMinimized(!isCardMinimized)}
+                className="text-gray-400 hover:text-white text-xs font-bold px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10"
+                title={isCardMinimized ? 'Expandir Ficha' : 'Minimizar Ficha'}
+              >
+                {isCardMinimized ? '▲' : '▼'}
+              </button>
+            </div>
+          </div>
+
+          {!isCardMinimized && (
+            <div className="space-y-2.5 text-xs">
+              {/* Origin & Destination */}
+              <div className="space-y-1.5">
+                <div className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-black mt-0.5">📍</span>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[10px] text-gray-400 block font-bold uppercase">Origen / Abordaje</span>
+                    <p className="text-white font-medium text-[11px] truncate" title={activeCardData.originAddress}>
+                      {activeCardData.originAddress || 'Origen por definir'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2">
+                  <span className="text-red-400 font-black mt-0.5">🏁</span>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[10px] text-gray-400 block font-bold uppercase">Destino Final</span>
+                    <p className="text-white font-medium text-[11px] truncate" title={activeCardData.destinationAddress}>
+                      {activeCardData.destinationAddress || 'Destino por definir'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Driver & Vehicle */}
+              <div className="p-2 rounded-xl bg-black/40 border border-executive-border flex items-center justify-between">
+                <div className="min-w-0 flex-1">
+                  <span className="text-[9px] text-gray-400 block font-bold uppercase">Unidad & Chofer</span>
+                  <span className="text-luxury-gold font-bold text-[11px] truncate block">
+                    {activeCardData.vehicleInfo || 'Unidad Asignada'}
+                  </span>
+                  <span className="text-gray-300 text-[10px] truncate block">
+                    {activeCardData.driverName ? `Chofer: ${activeCardData.driverName}` : 'Chofer en espera de confirmación'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Passenger & Fare Info */}
+              <div className="flex items-center justify-between pt-1 text-[10px]">
+                <div>
+                  <span className="text-gray-400 block">Pasajero VIP</span>
+                  <span className="text-white font-bold">{activeCardData.passengerName || 'Pasajero VIP'}</span>
+                </div>
+                {activeCardData.totalFare && (
+                  <div className="text-right">
+                    <span className="text-gray-400 block">Tarifa Estimada</span>
+                    <span className="text-emerald-400 font-black font-mono text-xs">
+                      ${activeCardData.totalFare} USD
+                    </span>
+                    {activeCardData.bcvFare && (
+                      <span className="text-[9px] text-gray-400 block font-mono">
+                        (~Bs. {activeCardData.bcvFare})
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

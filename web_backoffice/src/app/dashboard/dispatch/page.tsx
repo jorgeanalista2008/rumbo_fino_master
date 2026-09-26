@@ -347,6 +347,24 @@ export default function DispatchPage() {
     });
   }, [rides, liveDriverLocations]);
 
+  const activeMapCardData = useMemo(() => {
+    const targetRide = selectedRide || rides.find((r) => r.status !== 'FINALIZADO' && r.status !== 'CANCELADO') || rides[0];
+    if (!targetRide) return null;
+    return {
+      id: targetRide.id,
+      originAddress: targetRide.originAddress,
+      destinationAddress: targetRide.destinationAddress,
+      passengerName: targetRide.passenger ? `${targetRide.passenger.firstName} ${targetRide.passenger.lastName}` : (targetRide.passengerName || 'Pasajero VIP'),
+      passengerPhone: targetRide.passenger?.phone,
+      driverName: targetRide.driver?.user ? `${targetRide.driver.user.firstName} ${targetRide.driver.user.lastName}` : undefined,
+      vehicleInfo: targetRide.vehicle ? `${targetRide.vehicle.make} ${targetRide.vehicle.model || ''} (${targetRide.vehicle.licensePlate})` : undefined,
+      totalFare: targetRide.totalFare,
+      bcvFare: (Number(targetRide.totalFare || 0) * Number(bcvRate || 50)).toFixed(2),
+      status: targetRide.status,
+      paymentMethod: targetRide.paymentMethod,
+    };
+  }, [selectedRide, rides, bcvRate]);
+
   const activeRoutePolyline: Array<[number, number]> = customOrigin && customDestination
     ? [
         [customOrigin.lat, customOrigin.lng],
@@ -578,6 +596,7 @@ export default function DispatchPage() {
               routePolyline={activeRoutePolyline}
               selectionMode={mapSelectionMode}
               onLocationSelect={handleLocationSelectFromMap}
+              activeCardData={activeMapCardData}
             />
           </div>
         </div>
