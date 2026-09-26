@@ -22,18 +22,17 @@ import {
   AlertTriangle,
   Wand2,
   ShieldCheck,
-  ShieldAlert,
   Search,
   Filter,
   LayoutGrid,
   List,
   Upload,
-  ExternalLink,
   Phone,
   FileText,
   Clock,
-  ChevronRight,
   UserCheck,
+  UserPlus,
+  StopCircle,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 
@@ -130,6 +129,7 @@ const REJECTION_PRESETS = [
 
 export default function VehiclesPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [allDrivers, setAllDrivers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
@@ -143,10 +143,21 @@ export default function VehiclesPage() {
   const [activeModalTab, setActiveModalTab] = useState<'specs' | 'documents' | 'upload_doc'>('specs');
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
 
+  // Driver Assignment inside modal
+  const [showAssignDriverForm, setShowAssignDriverForm] = useState(false);
+  const [selectedDriverIdToAssign, setSelectedDriverIdToAssign] = useState('');
+  const [assignOdometer, setAssignOdometer] = useState(45000);
+  const [assignNotes, setAssignNotes] = useState('');
+  const [submittingDriverAssign, setSubmittingDriverAssign] = useState(false);
+
+  // End Shift inside modal
+  const [showEndShiftPrompt, setShowEndShiftPrompt] = useState(false);
+  const [endShiftOdometer, setEndShiftOdometer] = useState(45000);
+  const [submittingEndShift, setSubmittingEndShift] = useState(false);
+
   // Document verification state
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
-  const [previewDocUrl, setPreviewDocUrl] = useState<string | null>(null);
   const [rejectingDocId, setRejectingDocId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
@@ -216,8 +227,20 @@ export default function VehiclesPage() {
     }
   };
 
+  const loadAllDrivers = async () => {
+    try {
+      const res = await api.get('/drivers');
+      if (res.data?.data) {
+        setAllDrivers(res.data.data);
+      }
+    } catch (err) {
+      console.warn('Error cargando lista de choferes:', err);
+    }
+  };
+
   useEffect(() => {
     loadVehicles();
+    loadAllDrivers();
   }, []);
 
   const openAddModal = () => {
@@ -230,8 +253,11 @@ export default function VehiclesPage() {
     setSelectedVehicle(vehicle);
     setActivePhotoIndex(0);
     setActiveModalTab(defaultTab);
+    setShowAssignDriverForm(false);
+    setShowEndShiftPrompt(false);
     setShowDetailModal(true);
     loadVehicleDocuments(vehicle.id);
+    loadAllDrivers();
   };
 
   const loadVehicleDocuments = async (vehicleId: string) => {
@@ -247,6 +273,78 @@ export default function VehiclesPage() {
     }
   };
 
+  // Assign Driver to Vehicle Action
+  const handleAssignDriverToVehicle = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedVehicle || !selectedDriverIdToAssign) return;
+
+    setSubmittingDriverAssign(true);
+    try {
+      await api.post(`/drivers/${selectedDriverIdToAssign}/assign-vehicle`, {
+        vehicleId: selectedVehicle.id,
+        initialOdometer: Number(assignOdometer) || 45000,
+        notes: assignNotes || 'Asignación desde Ficha Técnica Ejecutiva',
+      });
+
+      const assignedDriverObj = allDrivers.find((d) => d.id === selectedDriverIdToAssign);
+      const driverInfo: AssignedDriver = {
+        id: selectedDriverIdToAssign,
+        name: `${assignedDriverObj?.user?.firstName || ''} ${assignedDriverObj?.user?.lastName || ''}`.trim(),
+        phone: assignedDriverObj?.user?.phoneNumber,
+        email: assignedDriverObj?.user?.email,
+        avatarUrl: assignedDriverObj?.user?.avatarUrl,
+        isOnline: assignedDriverObj?.isOnline || false,
+      };
+
+      setSelectedVehicle((prev) => (prev ? { ...prev, status: 'IN_SERVICE', assignedDriver: driverInfo } : null));
+      setVehicles((prev) =>
+        prev.map((v) => (v.id === selectedVehicle.id ? { ...v, status: 'IN_SERVICE', assignedDriver: driverInfo } : v)),
+      );
+
+      showToast('🚗 ¡Conductor asignado exitosamente a la unidad!');
+      setShowAssignDriverForm(false);
+      setSelectedDriverIdToAssign('');
+      setAssignNotes('');
+      loadVehicles();
+      loadAllDrivers();
+    } catch (err: any) {
+      console.error('Error asignando conductor:', err);
+      const msg = err.response?.data?.message || 'Error al asignar conductor al vehículo.';
+      showToast(Array.isArray(msg) ? msg.join(', ') : msg, 'error');
+    } finally {
+      setSubmittingDriverAssign(false);
+    }
+  };
+
+  // Unassign / End Shift Action
+  const handleUnassignDriverFromVehicle = async () => {
+    if (!selectedVehicle?.assignedDriver) return;
+
+    setSubmittingEndShift(true);
+    try {
+      await api.post(`/drivers/${selectedVehicle.assignedDriver.id}/end-shift-admin`, {
+        finalOdometer: Number(endShiftOdometer) || 45000,
+        notes: 'Cierre de turno y liberación desde Ficha Técnica',
+      });
+
+      setSelectedVehicle((prev) => (prev ? { ...prev, status: 'AVAILABLE', assignedDriver: null } : null));
+      setVehicles((prev) =>
+        prev.map((v) => (v.id === selectedVehicle.id ? { ...v, status: 'AVAILABLE', assignedDriver: null } : v)),
+      );
+
+      showToast('✅ Unidad liberada y turno finalizado correctamente.');
+      setShowEndShiftPrompt(false);
+      loadVehicles();
+      loadAllDrivers();
+    } catch (err: any) {
+      console.error('Error liberando unidad:', err);
+      const msg = err.response?.data?.message || 'Error al liberar el vehículo.';
+      showToast(Array.isArray(msg) ? msg.join(', ') : msg, 'error');
+    } finally {
+      setSubmittingEndShift(false);
+    }
+  };
+
   const handleVerifyDocument = async (docId: string, status: 'APPROVED' | 'REJECTED', customReason?: string) => {
     setActionLoading(true);
     try {
@@ -256,12 +354,10 @@ export default function VehiclesPage() {
         rejectionReason: reason,
       });
 
-      // Update local state
       setDocuments((prev) =>
         prev.map((d) => (d.id === docId ? { ...d, status, rejectionReason: reason } : d)),
       );
 
-      // Update vehicle in main list
       setVehicles((prev) =>
         prev.map((v) => {
           if (v.id === selectedVehicle?.id) {
@@ -317,9 +413,7 @@ export default function VehiclesPage() {
       formData.append('documentNumber', uploadDocNumber);
       formData.append('expirationDate', uploadDocExpiration);
 
-      await api.post(`/vehicles/${selectedVehicle.id}/documents`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      await api.post(`/vehicles/${selectedVehicle.id}/documents`, formData);
 
       showToast('📄 Documento subido exitosamente al expediente.');
       setUploadFile(null);
@@ -405,7 +499,6 @@ export default function VehiclesPage() {
     const inService = vehicles.filter((v) => v.status === 'IN_SERVICE').length;
     const maintenance = vehicles.filter((v) => v.status === 'MAINTENANCE').length;
     
-    // Document audits
     let pendingDocsCount = 0;
     let vehiclesWithPending = 0;
     vehicles.forEach((v) => {
@@ -446,6 +539,11 @@ export default function VehiclesPage() {
       return matchSearch && matchCat && matchStatus && matchDoc;
     });
   }, [vehicles, searchQuery, categoryFilter, statusFilter, docFilter]);
+
+  // Drivers available for assignment (without active vehicle)
+  const availableDriversForAssignment = useMemo(() => {
+    return allDrivers.filter((dr) => !dr.currentVehicleId && !dr.currentVehicle);
+  }, [allDrivers]);
 
   return (
     <div className="space-y-6">
@@ -490,7 +588,10 @@ export default function VehiclesPage() {
 
         <div className="flex items-center gap-3 relative z-10">
           <button
-            onClick={loadVehicles}
+            onClick={() => {
+              loadVehicles();
+              loadAllDrivers();
+            }}
             title="Recargar flota"
             className="p-3 bg-executive-dark hover:bg-executive-border text-gray-300 rounded-xl border border-executive-border transition-colors shadow-sm"
           >
@@ -580,7 +681,6 @@ export default function VehiclesPage() {
 
           {/* Filters and View Switcher */}
           <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto justify-end">
-            {/* Category Filter */}
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
@@ -593,7 +693,6 @@ export default function VehiclesPage() {
               <option value="LUXURY_ARMORED">Blindado VR7</option>
             </select>
 
-            {/* Status Filter */}
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -606,7 +705,6 @@ export default function VehiclesPage() {
               <option value="DECOMMISSIONED">🔴 Retirado</option>
             </select>
 
-            {/* Document Filter */}
             <select
               value={docFilter}
               onChange={(e) => setDocFilter(e.target.value)}
@@ -618,7 +716,6 @@ export default function VehiclesPage() {
               <option value="REJECTED">❌ Con Rechazos</option>
             </select>
 
-            {/* View Mode Toggle */}
             <div className="flex items-center bg-executive-dark border border-executive-border rounded-xl p-1">
               <button
                 onClick={() => setViewMode('grid')}
@@ -757,7 +854,7 @@ export default function VehiclesPage() {
                         </span>
                       </div>
                     </div>
-                    {v.assignedDriver && (
+                    {v.assignedDriver ? (
                       <span
                         className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${
                           v.assignedDriver.isOnline
@@ -767,6 +864,13 @@ export default function VehiclesPage() {
                       >
                         {v.assignedDriver.isOnline ? 'EN LÍNEA' : 'OFFLINE'}
                       </span>
+                    ) : (
+                      <button
+                        onClick={() => openDetailModal(v, 'specs')}
+                        className="text-luxury-gold hover:underline text-[10px] font-bold flex items-center gap-1"
+                      >
+                        <UserPlus className="w-3 h-3" /> Asignar
+                      </button>
                     )}
                   </div>
 
@@ -868,7 +972,12 @@ export default function VehiclesPage() {
                             <div className="text-[10px] text-gray-400">{v.assignedDriver.phone || 'Sin tlf'}</div>
                           </div>
                         ) : (
-                          <span className="text-xs text-gray-500 italic">Sin asignar</span>
+                          <button
+                            onClick={() => openDetailModal(v, 'specs')}
+                            className="text-luxury-gold hover:underline text-xs font-bold flex items-center gap-1"
+                          >
+                            <UserPlus className="w-3.5 h-3.5" /> Asignar Chofer
+                          </button>
                         )}
                       </td>
                       <td className="px-5 py-4">
@@ -1055,40 +1164,208 @@ export default function VehiclesPage() {
                     </div>
                   </div>
 
-                  {/* Driver Assignment Card */}
-                  <div className="bg-executive-dark/60 p-5 rounded-2xl border border-executive-border space-y-3">
-                    <h4 className="text-xs font-bold text-luxury-gold uppercase tracking-wider border-b border-executive-border/60 pb-2 flex items-center gap-2">
-                      <UserCheck className="w-4 h-4" /> Conductor Ejecutivo Asignado
-                    </h4>
-                    {selectedVehicle.assignedDriver ? (
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-2xl bg-luxury-gold/10 border border-luxury-gold/30 flex items-center justify-center text-luxury-gold font-black text-lg">
-                            {selectedVehicle.assignedDriver.name.charAt(0)}
+                  {/* Driver Assignment Card (INTERACTIVE) */}
+                  <div className="bg-executive-dark/60 p-5 rounded-2xl border border-executive-border space-y-3 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between border-b border-executive-border/60 pb-2">
+                        <h4 className="text-xs font-bold text-luxury-gold uppercase tracking-wider flex items-center gap-2">
+                          <UserCheck className="w-4 h-4" /> Conductor Ejecutivo Asignado
+                        </h4>
+                        {!selectedVehicle.assignedDriver && !showAssignDriverForm && (
+                          <button
+                            onClick={() => {
+                              setShowAssignDriverForm(true);
+                              if (availableDriversForAssignment.length > 0) {
+                                setSelectedDriverIdToAssign(availableDriversForAssignment[0].id);
+                              }
+                            }}
+                            className="px-2.5 py-1 bg-luxury-gold hover:bg-luxury-gold-hover text-black font-extrabold text-[10px] rounded-lg shadow-sm flex items-center gap-1 transition-all"
+                          >
+                            <UserPlus className="w-3 h-3" /> Asignar Chofer
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Driver Status Display */}
+                      <div className="pt-3">
+                        {selectedVehicle.assignedDriver ? (
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-2xl bg-luxury-gold/10 border border-luxury-gold/30 flex items-center justify-center text-luxury-gold font-black text-lg">
+                                  {selectedVehicle.assignedDriver.name.charAt(0)}
+                                </div>
+                                <div>
+                                  <h5 className="font-bold text-white text-sm">{selectedVehicle.assignedDriver.name}</h5>
+                                  <p className="text-xs text-gray-400 flex items-center gap-1">
+                                    <Phone className="w-3 h-3 text-luxury-gold" /> {selectedVehicle.assignedDriver.phone || 'Sin teléfono'}
+                                  </p>
+                                  <span
+                                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full border mt-1 inline-block ${
+                                      selectedVehicle.assignedDriver.isOnline
+                                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                                        : 'bg-gray-500/10 text-gray-400 border-gray-500/30'
+                                    }`}
+                                  >
+                                    {selectedVehicle.assignedDriver.isOnline ? '🟢 Chofer en línea (GPS Activo)' : '⚪ Desconectado'}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <button
+                                onClick={() => setShowEndShiftPrompt(!showEndShiftPrompt)}
+                                className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors"
+                              >
+                                <StopCircle className="w-3.5 h-3.5" /> Liberar
+                              </button>
+                            </div>
+
+                            {/* End Shift Prompt Inline */}
+                            {showEndShiftPrompt && (
+                              <div className="p-3.5 bg-executive-card border border-red-500/40 rounded-xl space-y-2.5 animate-fadeIn">
+                                <h6 className="text-xs font-bold text-red-400 flex items-center gap-1.5">
+                                  <AlertTriangle className="w-3.5 h-3.5" /> Finalizar Turno y Liberar Vehículo
+                                </h6>
+                                <div>
+                                  <label className="block text-[10px] text-gray-400 uppercase mb-1">Odómetro Final (km)</label>
+                                  <input
+                                    type="number"
+                                    value={endShiftOdometer}
+                                    onChange={(e) => setEndShiftOdometer(Number(e.target.value))}
+                                    className="w-full bg-executive-dark border border-executive-border rounded-lg p-2 text-xs text-white font-mono"
+                                  />
+                                </div>
+                                <div className="flex justify-end gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowEndShiftPrompt(false)}
+                                    className="px-2.5 py-1 bg-executive-dark text-gray-400 text-xs rounded-lg"
+                                  >
+                                    Cancelar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={submittingEndShift}
+                                    onClick={handleUnassignDriverFromVehicle}
+                                    className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white font-bold text-xs rounded-lg disabled:opacity-50"
+                                  >
+                                    {submittingEndShift ? 'Liberando...' : 'Confirmar'}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                          <div>
-                            <h5 className="font-bold text-white text-sm">{selectedVehicle.assignedDriver.name}</h5>
-                            <p className="text-xs text-gray-400 flex items-center gap-1">
-                              <Phone className="w-3 h-3 text-luxury-gold" /> {selectedVehicle.assignedDriver.phone || 'Sin teléfono'}
-                            </p>
-                            <span
-                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full border mt-1 inline-block ${
-                                selectedVehicle.assignedDriver.isOnline
-                                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                                  : 'bg-gray-500/10 text-gray-400 border-gray-500/30'
-                              }`}
+                        ) : !showAssignDriverForm ? (
+                          <div className="text-center py-5 space-y-2.5">
+                            <div className="w-10 h-10 rounded-2xl bg-executive-dark border border-executive-border flex items-center justify-center mx-auto text-gray-500">
+                              <Users className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-300 font-semibold">Esta unidad no tiene ningún conductor en turno asignado.</p>
+                              <p className="text-[11px] text-gray-500">Asigna un chofer disponible para habilitarla al despacho.</p>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setShowAssignDriverForm(true);
+                                if (availableDriversForAssignment.length > 0) {
+                                  setSelectedDriverIdToAssign(availableDriversForAssignment[0].id);
+                                }
+                              }}
+                              className="px-4 py-2 bg-luxury-gold hover:bg-luxury-gold-hover text-black font-extrabold text-xs rounded-xl shadow-md inline-flex items-center gap-1.5 transition-all mt-1"
                             >
-                              {selectedVehicle.assignedDriver.isOnline ? '🟢 Chofer en línea (GPS Activo)' : '⚪ Desconectado'}
-                            </span>
+                              <UserPlus className="w-3.5 h-3.5" /> ASIGNAR CONDUCTOR EJECUTIVO
+                            </button>
                           </div>
-                        </div>
+                        ) : (
+                          /* Inline Assignment Form */
+                          <form onSubmit={handleAssignDriverToVehicle} className="space-y-3 bg-executive-dark p-4 rounded-xl border border-luxury-gold/40 animate-fadeIn">
+                            <div className="flex items-center justify-between border-b border-executive-border/60 pb-2">
+                              <h5 className="text-xs font-bold text-luxury-gold flex items-center gap-1.5">
+                                <UserPlus className="w-3.5 h-3.5" /> Asignar Turno de Conducción
+                              </h5>
+                              <button
+                                type="button"
+                                onClick={() => setShowAssignDriverForm(false)}
+                                className="text-gray-400 hover:text-white"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+
+                            <div className="space-y-2.5 text-xs">
+                              <div>
+                                <label className="block text-gray-300 font-semibold mb-1">Seleccionar Chofer Disponible</label>
+                                <select
+                                  required
+                                  value={selectedDriverIdToAssign}
+                                  onChange={(e) => setSelectedDriverIdToAssign(e.target.value)}
+                                  className="w-full bg-executive-card border border-executive-border rounded-xl p-2.5 text-white text-xs focus:outline-none focus:border-luxury-gold font-medium"
+                                >
+                                  {availableDriversForAssignment.length === 0 ? (
+                                    <option value="">No hay choferes libres sin vehículo</option>
+                                  ) : (
+                                    availableDriversForAssignment.map((dr) => (
+                                      <option key={dr.id} value={dr.id}>
+                                        {dr.user?.firstName} {dr.user?.lastName} (Lic: {dr.licenseNumber} - ⭐ {Number(dr.ratingAvg || 5).toFixed(1)})
+                                      </option>
+                                    ))
+                                  )}
+                                </select>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <label className="block text-gray-300 font-semibold mb-1">Odómetro Inicial (km)</label>
+                                  <input
+                                    type="number"
+                                    required
+                                    min={0}
+                                    value={assignOdometer}
+                                    onChange={(e) => setAssignOdometer(Number(e.target.value))}
+                                    className="w-full bg-executive-card border border-executive-border rounded-xl p-2 text-white font-mono"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-gray-300 font-semibold mb-1">Notas (Opcional)</label>
+                                  <input
+                                    type="text"
+                                    placeholder="Ej: Turno ejecutivo"
+                                    value={assignNotes}
+                                    onChange={(e) => setAssignNotes(e.target.value)}
+                                    className="w-full bg-executive-card border border-executive-border rounded-xl p-2 text-white"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="pt-2 flex justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setShowAssignDriverForm(false)}
+                                className="px-3 py-1.5 bg-executive-card text-gray-400 text-xs rounded-lg"
+                              >
+                                Cancelar
+                              </button>
+                              <button
+                                type="submit"
+                                disabled={submittingDriverAssign || !selectedDriverIdToAssign}
+                                className="px-4 py-1.5 bg-luxury-gold hover:bg-luxury-gold-hover text-black font-extrabold text-xs rounded-lg shadow-md disabled:opacity-50 flex items-center gap-1.5"
+                              >
+                                {submittingDriverAssign ? (
+                                  <>
+                                    <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Asignando...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Check className="w-3.5 h-3.5" /> Confirmar Asignación
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </form>
+                        )}
                       </div>
-                    ) : (
-                      <div className="text-center py-6 space-y-2">
-                        <Users className="w-8 h-8 text-gray-600 mx-auto" />
-                        <p className="text-xs text-gray-400">Esta unidad no tiene ningún conductor en turno asignado actualmente.</p>
-                      </div>
-                    )}
+                    </div>
                   </div>
                 </div>
 
