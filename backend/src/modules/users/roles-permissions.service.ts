@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Inject, forwardRef, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { RolePermissionEntity } from '../../core/database/entities/role-permission.entity';
@@ -206,6 +206,18 @@ export class RolesPermissionsService {
     }
 
     return saved;
+  }
+
+  async deleteRole(role: string): Promise<void> {
+    const item = await this.rolePermissionRepository.findOne({ where: { role } });
+    if (!item) {
+      throw new NotFoundException(`El perfil de rol '${role}' no existe`);
+    }
+    if (item.isSystem || DEFAULT_ROLE_PRESETS.some((p) => p.role === role)) {
+      throw new BadRequestException(`No se pueden eliminar los roles base predeterminados del sistema`);
+    }
+    await this.rolePermissionRepository.remove(item);
+    this.logger.log(`Rol personalizado '${role}' eliminado exitosamente`);
   }
 
   async resetDefaults(): Promise<RolePermissionEntity[]> {

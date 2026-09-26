@@ -3,6 +3,7 @@ import {
   Get,
   Put,
   Post,
+  Delete,
   Param,
   Body,
   UseGuards,
@@ -65,5 +66,13 @@ export class RolesPermissionsController {
   async resetDefaults() {
     const resetList = await this.rolesPermissionsService.resetDefaults();
     return ApiResponseDto.ok(resetList, 'Permisos y menús restaurados a valores de fábrica');
+  }
+
+  @Delete(':role')
+  @Roles(UserRoleEnum.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Eliminar un perfil de rol personalizado' })
+  async deleteRole(@Param('role') role: string) {
+    await this.rolesPermissionsService.deleteRole(role);
+    return ApiResponseDto.ok(null, `Perfil de rol '${role}' eliminado exitosamente`);
   }
 }

@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { api } from '@/lib/api';
 
-export type UserRole = 'SUPER_ADMIN' | 'FLEET_ADMIN' | 'DISPATCHER' | 'DRIVER' | 'PASSENGER';
+export type UserRole = string;
 export type UserStatus = 'ACTIVE' | 'PENDING_APPROVAL' | 'SUSPENDED' | 'INACTIVE';
 
 export interface UserItem {
@@ -30,7 +30,7 @@ export interface UserItem {
   phoneNumber: string;
   firstName: string;
   lastName: string;
-  role: UserRole;
+  role: string;
   status: UserStatus;
   avatarUrl?: string;
   createdAt?: string;
@@ -45,8 +45,8 @@ interface UserModalProps {
   onToast: (type: 'success' | 'error' | 'info', title: string, message: string) => void;
 }
 
-const ROLES_INFO: Record<
-  UserRole,
+const BUILT_IN_ROLES_INFO: Record<
+  string,
   { name: string; icon: any; color: string; badgeBg: string; border: string; desc: string }
 > = {
   SUPER_ADMIN: {
@@ -100,10 +100,55 @@ export function UserModal({ user, isOpen, onClose, onSuccess, onToast }: UserMod
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [role, setRole] = useState<UserRole>('PASSENGER');
+  const [role, setRole] = useState<string>('PASSENGER');
   const [status, setStatus] = useState<UserStatus>('ACTIVE');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const [allRolesList, setAllRolesList] = useState<
+    Array<{ role: string; name: string; icon: any; color: string; desc: string }>
+  >([]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Fetch dynamic roles list
+    const fetchRoles = async () => {
+      try {
+        const res = await api.get<any>('/roles-permissions');
+        const rolesData = res.data?.data || (Array.isArray(res.data) ? res.data : []);
+        if (rolesData.length > 0) {
+          const mapped = rolesData.map((r: any) => {
+            const preset = BUILT_IN_ROLES_INFO[r.role];
+            return {
+              role: r.role,
+              name: r.displayName || preset?.name || r.role,
+              icon: preset?.icon || Shield,
+              color: preset?.color || 'text-luxury-gold',
+              desc: r.description || preset?.desc || 'Perfil del sistema',
+            };
+          });
+          setAllRolesList(mapped);
+          return;
+        }
+      } catch (err) {
+        console.warn('Error fetching roles for modal:', err);
+      }
+
+      // Fallback
+      setAllRolesList(
+        Object.entries(BUILT_IN_ROLES_INFO).map(([k, v]) => ({
+          role: k,
+          name: v.name,
+          icon: v.icon,
+          color: v.color,
+          desc: v.desc,
+        })),
+      );
+    };
+
+    fetchRoles();
+  }, [isOpen]);
 
   useEffect(() => {
     if (user) {
@@ -176,7 +221,7 @@ export function UserModal({ user, isOpen, onClose, onSuccess, onToast }: UserMod
 
         const res = await api.post<any>('/users', payload);
         const created = res.data?.data || res.data;
-        onToast('success', 'Usuario Creado', `Nuevo perfil (${ROLES_INFO[role].name}) registrado exitosamente.`);
+        onToast('success', 'Usuario Creado', `Nuevo usuario registrado con el rol ${role} exitosamente.`);
         onSuccess(created, true);
       }
       onClose();
@@ -205,7 +250,7 @@ export function UserModal({ user, isOpen, onClose, onSuccess, onToast }: UserMod
               <p className="text-xs text-gray-400">
                 {isEdit
                   ? `Modificando expediente de ${user?.firstName} ${user?.lastName}`
-                  : 'Asigne credenciales y perfil entre los 5 roles del ecosistema'}
+                  : 'Asigne credenciales y perfil entre los roles del ecosistema'}
               </p>
             </div>
           </div>
@@ -220,21 +265,29 @@ export function UserModal({ user, isOpen, onClose, onSuccess, onToast }: UserMod
 
         {/* MODAL BODY FORM */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6 text-xs">
-          {/* ROLE SELECTOR (5 PROFILES) */}
+          {/* ROLE SELECTOR */}
           <div className="space-y-2">
             <label className="text-gray-300 font-bold block uppercase tracking-wider text-[11px]">
               Seleccionar Perfil & Nivel de Acceso <span className="text-luxury-gold">*</span>
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-              {(Object.keys(ROLES_INFO) as UserRole[]).map((rKey) => {
-                const info = ROLES_INFO[rKey];
-                const isSelected = role === rKey;
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-56 overflow-y-auto pr-1">
+              {(allRolesList.length > 0
+                ? allRolesList
+                : Object.entries(BUILT_IN_ROLES_INFO).map(([k, v]) => ({
+                    role: k,
+                    name: v.name,
+                    icon: v.icon,
+                    color: v.color,
+                    desc: v.desc,
+                  }))
+              ).map((info) => {
+                const isSelected = role === info.role;
                 const IconComponent = info.icon;
                 return (
                   <button
                     type="button"
-                    key={rKey}
-                    onClick={() => setRole(rKey)}
+                    key={info.role}
+                    onClick={() => setRole(info.role)}
                     className={`p-3 rounded-2xl border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
                       isSelected
                         ? `bg-executive-dark border-luxury-gold ring-1 ring-luxury-gold shadow-lg shadow-luxury-gold/10`
@@ -243,14 +296,14 @@ export function UserModal({ user, isOpen, onClose, onSuccess, onToast }: UserMod
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className={`flex items-center gap-1.5 font-black text-xs ${info.color}`}>
-                        <IconComponent className="w-4 h-4" />
-                        {info.name}
+                        <IconComponent className="w-4 h-4 shrink-0" />
+                        <span className="truncate">{info.name}</span>
                       </span>
                       {isSelected && (
-                        <span className="w-2 h-2 rounded-full bg-luxury-gold animate-ping" />
+                        <span className="w-2 h-2 rounded-full bg-luxury-gold animate-ping shrink-0" />
                       )}
                     </div>
-                    <p className="text-[10px] text-gray-400 leading-tight">{info.desc}</p>
+                    <p className="text-[10px] text-gray-400 leading-tight line-clamp-2">{info.desc}</p>
                   </button>
                 );
               })}
@@ -307,7 +360,7 @@ export function UserModal({ user, isOpen, onClose, onSuccess, onToast }: UserMod
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="usuario@rumbofino.com"
+                  placeholder="admin@rumbofino.com"
                   className="w-full pl-9 pr-3 py-2.5 bg-executive-dark border border-executive-border focus:border-luxury-gold rounded-xl text-white font-medium outline-none"
                 />
               </div>
@@ -315,7 +368,7 @@ export function UserModal({ user, isOpen, onClose, onSuccess, onToast }: UserMod
 
             <div>
               <label className="text-gray-300 font-bold block mb-1">
-                Teléfono Móvil (Venezuela) <span className="text-luxury-gold">*</span>
+                Teléfono de Contacto <span className="text-luxury-gold">*</span>
               </label>
               <div className="relative">
                 <Phone className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -325,7 +378,7 @@ export function UserModal({ user, isOpen, onClose, onSuccess, onToast }: UserMod
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
                   placeholder="+58 412 1234567"
-                  className="w-full pl-9 pr-3 py-2.5 bg-executive-dark border border-executive-border focus:border-luxury-gold rounded-xl text-white font-mono font-medium outline-none"
+                  className="w-full pl-9 pr-3 py-2.5 bg-executive-dark border border-executive-border focus:border-luxury-gold rounded-xl text-white font-medium outline-none"
                 />
               </div>
             </div>
@@ -335,18 +388,16 @@ export function UserModal({ user, isOpen, onClose, onSuccess, onToast }: UserMod
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-gray-300 font-bold block mb-1">
-                {isEdit ? 'Contraseña (Dejar en blanco para no cambiar)' : 'Contraseña de Acceso'}
-                {!isEdit && <span className="text-luxury-gold"> *</span>}
+                {isEdit ? 'Nueva Contraseña (Opcional)' : 'Contraseña de Acceso *'}
               </label>
               <div className="relative">
                 <Lock className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required={!isEdit}
-                  minLength={6}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder={isEdit ? '••••••••' : 'Mínimo 6 caracteres'}
+                  placeholder={isEdit ? 'Dejar en blanco para mantener' : 'Mínimo 6 caracteres'}
                   className="w-full pl-9 pr-10 py-2.5 bg-executive-dark border border-executive-border focus:border-luxury-gold rounded-xl text-white font-medium outline-none"
                 />
                 <button
@@ -360,57 +411,55 @@ export function UserModal({ user, isOpen, onClose, onSuccess, onToast }: UserMod
             </div>
 
             <div>
-              <label className="text-gray-300 font-bold block mb-1">Estado de la Cuenta</label>
+              <label className="text-gray-300 font-bold block mb-1">
+                Estado de la Cuenta
+              </label>
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as UserStatus)}
-                className="w-full p-2.5 bg-executive-dark border border-executive-border focus:border-luxury-gold rounded-xl text-white font-bold outline-none"
+                className="w-full px-3 py-2.5 bg-executive-dark border border-executive-border focus:border-luxury-gold rounded-xl text-white font-medium outline-none"
               >
-                <option value="ACTIVE">🟢 ACTIVO (Acceso Total)</option>
-                <option value="PENDING_APPROVAL">🟡 PENDIENTE DE APROBACIÓN</option>
-                <option value="SUSPENDED">🔴 SUSPENDIDO (Acceso Bloqueado)</option>
-                <option value="INACTIVE">⚪ INACTIVO</option>
+                <option value="ACTIVE">Activo (Acceso Total)</option>
+                <option value="PENDING_APPROVAL">Pendiente de Aprobación</option>
+                <option value="SUSPENDED">Suspendido</option>
+                <option value="INACTIVE">Inactivo</option>
               </select>
             </div>
           </div>
 
-          {/* AVATAR URL & PREVIEW */}
+          {/* AVATAR URL */}
           <div>
-            <label className="text-gray-300 font-bold block mb-1">Foto de Perfil / Avatar (URL)</label>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-executive-dark border border-executive-border flex items-center justify-center overflow-hidden shrink-0">
-                {avatarUrl ? (
-                  <img src={avatarUrl} alt="Preview" className="w-full h-full object-cover" />
-                ) : (
-                  <Camera className="w-4 h-4 text-gray-500" />
-                )}
-              </div>
+            <label className="text-gray-300 font-bold block mb-1">
+              URL de Foto de Perfil (Opcional)
+            </label>
+            <div className="relative">
+              <Camera className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
-                type="text"
+                type="url"
                 value={avatarUrl}
                 onChange={(e) => setAvatarUrl(e.target.value)}
-                placeholder="https://ejemplo.com/avatar.jpg"
-                className="w-full p-2.5 bg-executive-dark border border-executive-border focus:border-luxury-gold rounded-xl text-white font-medium outline-none"
+                placeholder="https://images.unsplash.com/..."
+                className="w-full pl-9 pr-3 py-2.5 bg-executive-dark border border-executive-border focus:border-luxury-gold rounded-xl text-white font-medium outline-none"
               />
             </div>
           </div>
 
-          {/* FOOTER ACTIONS */}
+          {/* MODAL FOOTER */}
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-executive-border">
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 bg-executive-dark hover:bg-executive-border text-gray-300 font-bold rounded-xl transition-all"
+              className="px-5 py-2.5 text-gray-400 hover:text-white font-bold transition-all rounded-xl"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-6 py-2.5 bg-luxury-gold hover:bg-luxury-gold-hover text-black font-black uppercase tracking-wider rounded-xl shadow-lg shadow-luxury-gold/20 flex items-center gap-2 transition-all transform hover:scale-[1.01] disabled:opacity-50"
+              className="px-6 py-2.5 bg-luxury-gold hover:bg-yellow-500 text-black font-extrabold rounded-xl shadow-lg shadow-luxury-gold/20 flex items-center gap-2 transition-all transform hover:scale-[1.02] disabled:opacity-50"
             >
               <CheckCircle2 className="w-4 h-4" />
-              {loading ? 'Guardando...' : isEdit ? 'Actualizar Perfil' : 'Crear Usuario VIP'}
+              {loading ? 'Guardando...' : isEdit ? 'Guardar Cambios' : 'Registrar Usuario'}
             </button>
           </div>
         </form>
