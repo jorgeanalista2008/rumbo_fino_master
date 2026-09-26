@@ -23,6 +23,7 @@ import {
   Award,
   CreditCard,
   History,
+  Camera,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 
@@ -86,11 +87,61 @@ export function DriverProfileModal({
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadingDoc, setUploadingDoc] = useState(false);
 
+  // Avatar photo update state
+  const [updatingAvatar, setUpdatingAvatar] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   const showToast = (text: string, type: 'success' | 'error' = 'success') => {
     setToastMessage({ text, type });
     setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !driverId) return;
+
+    setUpdatingAvatar(true);
+    try {
+      // 1. Upload file physically
+      const formData = new FormData();
+      formData.append('file', file);
+      const uploadRes = await api.post('/drivers/upload-file', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      const newAvatarUrl = uploadRes.data?.data?.fileUrl;
+      if (!newAvatarUrl) {
+        throw new Error('No se pudo obtener la URL de la foto');
+      }
+
+      // 2. Patch driver user profile
+      await api.patch(`/drivers/${driverId}`, {
+        avatarUrl: newAvatarUrl,
+      });
+
+      // 3. Update local state
+      setProfile((prev: any) => ({
+        ...prev,
+        user: {
+          ...prev?.user,
+          avatarUrl: newAvatarUrl,
+        },
+      }));
+
+      showToast('📸 ¡Fotografía del chofer actualizada exitosamente!', 'success');
+      onRefresh();
+    } catch (err: any) {
+      console.error('Error actualizando foto:', err);
+      const msg = err.response?.data?.message || 'Error al actualizar la foto del chofer.';
+      showToast(Array.isArray(msg) ? msg.join(', ') : msg, 'error');
+    } finally {
+      setUpdatingAvatar(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
   };
 
   const loadFullProfile = async () => {
@@ -301,29 +352,75 @@ export function DriverProfileModal({
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             {/* Top Identity Banner */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-executive-dark/80 p-5 rounded-2xl border border-executive-border shadow-inner">
-              {/* Profile summary */}
+              {/* Profile summary with interactive avatar */}
               <div className="flex items-center gap-4">
-                {profile.user?.avatarUrl ? (
-                  <img
-                    src={profile.user.avatarUrl}
-                    alt={profile.user.firstName}
-                    className="w-16 h-16 rounded-2xl object-cover border-2 border-luxury-gold/50 shadow-md"
-                  />
-                ) : (
-                  <div className="w-16 h-16 rounded-2xl bg-luxury-gold/10 border border-luxury-gold/30 text-luxury-gold flex items-center justify-center font-black text-2xl shadow-md">
-                    {profile.user?.firstName?.charAt(0) || 'C'}
-                  </div>
-                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarChange}
+                />
+                <div className="relative group shrink-0">
+                  {profile.user?.avatarUrl ? (
+                    <img
+                      src={profile.user.avatarUrl}
+                      alt={profile.user.firstName}
+                      className="w-16 h-16 rounded-2xl object-cover border-2 border-luxury-gold/50 shadow-md transition-all group-hover:brightness-75"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-2xl bg-luxury-gold/10 border border-luxury-gold/30 text-luxury-gold flex items-center justify-center font-black text-2xl shadow-md transition-all group-hover:brightness-75">
+                      {profile.user?.firstName?.charAt(0) || 'C'}
+                    </div>
+                  )}
+
+                  {/* Hover Camera Overlay */}
+                  <button
+                    type="button"
+                    disabled={updatingAvatar}
+                    onClick={() => fileInputRef.current?.click()}
+                    title="Cambiar fotografía del chofer"
+                    className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex flex-col items-center justify-center text-luxury-gold cursor-pointer border border-luxury-gold/60 backdrop-blur-[2px]"
+                  >
+                    {updatingAvatar ? (
+                      <RefreshCw className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <>
+                        <Camera className="w-5 h-5" />
+                        <span className="text-[9px] font-extrabold text-white mt-0.5">CAMBIAR</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
                 <div>
-                  <h3 className="text-lg font-black text-white">
-                    {profile.user?.firstName} {profile.user?.lastName}
-                  </h3>
-                  <p className="text-xs text-gray-400 flex items-center gap-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-black text-white">
+                      {profile.user?.firstName} {profile.user?.lastName}
+                    </h3>
+                  </div>
+                  <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
                     <Mail className="w-3 h-3 text-luxury-gold" /> {profile.user?.email}
                   </p>
                   <p className="text-xs text-luxury-gold font-mono font-bold flex items-center gap-1 mt-0.5">
                     <Phone className="w-3 h-3" /> {profile.user?.phoneNumber || 'N/A'}
                   </p>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={updatingAvatar}
+                    className="mt-1.5 px-2 py-0.5 bg-luxury-gold/10 hover:bg-luxury-gold/20 text-luxury-gold border border-luxury-gold/30 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-colors"
+                  >
+                    {updatingAvatar ? (
+                      <>
+                        <RefreshCw className="w-3 h-3 animate-spin" /> Subiendo...
+                      </>
+                    ) : (
+                      <>
+                        <Camera className="w-3 h-3" /> Cambiar Fotografía
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
 
