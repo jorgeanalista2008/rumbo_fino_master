@@ -16,12 +16,14 @@ const fs = require('fs');
 const path = require('path');
 
 async function seedData() {
+  const isCloud = process.env.DB_SSL === 'true' || (process.env.DB_HOST && process.env.DB_HOST !== 'localhost');
   const credentials = {
     host: process.env.DB_HOST || 'localhost',
     port: Number(process.env.DB_PORT) || 5432,
     user: process.env.DB_USERNAME || 'postgres',
     password: process.env.DB_PASSWORD || 'Jf18759339',
     database: process.env.DB_NAME || 'rumbo_fino',
+    ssl: isCloud ? { rejectUnauthorized: false } : false,
   };
 
   console.log('═══════════════════════════════════════════════════════════════════════');
