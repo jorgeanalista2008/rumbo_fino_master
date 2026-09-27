@@ -1,9 +1,9 @@
-import 'reflect-metadata';
-import { NestFactory } from '@nestjs/core';
-import { ExpressAdapter } from '@nestjs/platform-express';
-import { ValidationPipe } from '@nestjs/common';
-import { AppModule } from '../src/app.module';
-import * as express from 'express';
+require('reflect-metadata');
+const { NestFactory } = require('@nestjs/core');
+const { ExpressAdapter } = require('@nestjs/platform-express');
+const { ValidationPipe } = require('@nestjs/common');
+const { AppModule } = require('../dist/src/app.module');
+const express = require('express');
 
 const server = express();
 let isAppInitialized = false;
@@ -31,20 +31,19 @@ async function bootstrap() {
   isAppInitialized = true;
 }
 
-export default async function handler(req: any, res: any) {
+module.exports = async (req, res) => {
   if (!isAppInitialized) {
     try {
       await bootstrap();
-    } catch (err: any) {
+    } catch (err) {
       console.error('NestJS Bootstrap Error:', err);
       return res.status(500).json({
         statusCode: 500,
         message: 'Error al inicializar NestJS en Vercel Serverless',
         error: err?.message || String(err),
-        stack: err?.stack,
       });
     }
   }
 
   return server(req, res);
-}
+};
