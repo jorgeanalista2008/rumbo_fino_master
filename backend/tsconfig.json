@@ -22,5 +22,6 @@
       "@core/*": ["src/core/*"],
       "@modules/*": ["src/modules/*"]
     }
-  }
+  },
+  "include": ["src/**/*", "api/**/*"]
 }
