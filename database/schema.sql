@@ -1,5 +1,5 @@
 -- =============================================================================
--- RUMBO FINO - DATABASE SCHEMA INITIALIZATION (PostgreSQL 15+)
+-- RUMBO FINO - DATABASE SCHEMA INITIALIZATION (PostgreSQL 14+)
 -- Compatible with standard PostgreSQL & PostGIS
 -- =============================================================================
 
@@ -15,54 +15,72 @@ EXCEPTION
 END $$;
 
 -- -----------------------------------------------------------------------------
--- ENUMS DEFINITION
+-- ENUMS DEFINITION (Clean drop & recreation)
 -- -----------------------------------------------------------------------------
-DO $$ BEGIN
-    CREATE TYPE user_role_enum AS ENUM ('SUPER_ADMIN', 'DISPATCHER', 'DRIVER', 'PASSENGER');
-EXCEPTION WHEN duplicate_object THEN null; END $$;
+DROP TYPE IF EXISTS user_role_enum CASCADE;
+DROP TYPE IF EXISTS user_status_enum CASCADE;
+DROP TYPE IF EXISTS vehicle_category_enum CASCADE;
+DROP TYPE IF EXISTS vehicle_status_enum CASCADE;
+DROP TYPE IF EXISTS document_type_enum CASCADE;
+DROP TYPE IF EXISTS document_status_enum CASCADE;
+DROP TYPE IF EXISTS shift_status_enum CASCADE;
+DROP TYPE IF EXISTS ride_status_enum CASCADE;
+DROP TYPE IF EXISTS payment_method_enum CASCADE;
+DROP TYPE IF EXISTS transaction_type_enum CASCADE;
+DROP TYPE IF EXISTS transaction_status_enum CASCADE;
 
-DO $$ BEGIN
-    CREATE TYPE user_status_enum AS ENUM ('PENDING_APPROVAL', 'ACTIVE', 'SUSPENDED', 'INACTIVE');
-EXCEPTION WHEN duplicate_object THEN null; END $$;
-
-DO $$ BEGIN
-    CREATE TYPE vehicle_category_enum AS ENUM ('EXECUTIVE_SEDAN', 'VIP_SUV', 'PREMIUM_VAN', 'LUXURY_ARMORED');
-EXCEPTION WHEN duplicate_object THEN null; END $$;
-
-DO $$ BEGIN
-    CREATE TYPE vehicle_status_enum AS ENUM ('AVAILABLE', 'IN_SERVICE', 'MAINTENANCE', 'DECOMMISSIONED');
-EXCEPTION WHEN duplicate_object THEN null; END $$;
-
-DO $$ BEGIN
-    CREATE TYPE document_type_enum AS ENUM ('DRIVER_LICENSE', 'CRIMINAL_RECORD', 'IDENTITY_CARD', 'VEHICLE_TITLE', 'SOAT_INSURANCE', 'TECHNICAL_INSPECTION');
-EXCEPTION WHEN duplicate_object THEN null; END $$;
-
-DO $$ BEGIN
-    CREATE TYPE document_status_enum AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'EXPIRED');
-EXCEPTION WHEN duplicate_object THEN null; END $$;
-
-DO $$ BEGIN
-    CREATE TYPE shift_status_enum AS ENUM ('ACTIVE', 'COMPLETED', 'FORCED_CLOSED');
-EXCEPTION WHEN duplicate_object THEN null; END $$;
-
-DO $$ BEGIN
-    CREATE TYPE ride_status_enum AS ENUM ('SOLICITADO', 'ASIGNADO', 'EN_CAMINO', 'ABORDAJE', 'EN_CURSO', 'FINALIZADO', 'CANCELADO');
-EXCEPTION WHEN duplicate_object THEN null; END $$;
-
-DO $$ BEGIN
-    CREATE TYPE payment_method_enum AS ENUM ('CREDIT_CARD', 'CORPORATE_VOUCHER', 'CASH', 'WALLET');
-EXCEPTION WHEN duplicate_object THEN null; END $$;
-
-DO $$ BEGIN
-    CREATE TYPE transaction_type_enum AS ENUM ('RIDE_FARE', 'PLATFORM_COMMISSION', 'DRIVER_PAYOUT', 'CANCELLATION_FEE', 'BONUS_ADJUSTMENT');
-EXCEPTION WHEN duplicate_object THEN null; END $$;
-
-DO $$ BEGIN
-    CREATE TYPE transaction_status_enum AS ENUM ('PENDING', 'COMPLETED', 'FAILED', 'REFUNDED');
-EXCEPTION WHEN duplicate_object THEN null; END $$;
+CREATE TYPE user_role_enum AS ENUM ('SUPER_ADMIN', 'FLEET_ADMIN', 'DISPATCHER', 'DRIVER', 'PASSENGER');
+CREATE TYPE user_status_enum AS ENUM ('PENDING_APPROVAL', 'ACTIVE', 'SUSPENDED', 'INACTIVE');
+CREATE TYPE vehicle_category_enum AS ENUM ('EXECUTIVE_SEDAN', 'VIP_SUV', 'PREMIUM_VAN', 'LUXURY_ARMORED');
+CREATE TYPE vehicle_status_enum AS ENUM ('AVAILABLE', 'IN_SERVICE', 'MAINTENANCE', 'DECOMMISSIONED');
+CREATE TYPE document_type_enum AS ENUM ('DRIVER_LICENSE', 'CRIMINAL_RECORD', 'IDENTITY_CARD', 'MEDICAL_CERTIFICATE', 'DRIVING_CERTIFICATE', 'VEHICLE_TITLE', 'SOAT_INSURANCE', 'TECHNICAL_INSPECTION');
+CREATE TYPE document_status_enum AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'EXPIRED');
+CREATE TYPE shift_status_enum AS ENUM ('ACTIVE', 'COMPLETED', 'FORCED_CLOSED');
+CREATE TYPE ride_status_enum AS ENUM ('SOLICITADO', 'ASIGNADO', 'EN_CAMINO', 'ABORDAJE', 'EN_CURSO', 'FINALIZADO', 'CANCELADO');
+CREATE TYPE payment_method_enum AS ENUM ('CREDIT_CARD', 'CORPORATE_VOUCHER', 'CASH', 'WALLET', 'ZELLE', 'PAGO_MOVIL');
+CREATE TYPE transaction_type_enum AS ENUM ('RIDE_FARE', 'PLATFORM_COMMISSION', 'DRIVER_PAYOUT', 'CANCELLATION_FEE', 'BONUS_ADJUSTMENT', 'TIP_PAYMENT');
+CREATE TYPE transaction_status_enum AS ENUM ('PENDING', 'COMPLETED', 'FAILED', 'REFUNDED');
 
 -- -----------------------------------------------------------------------------
--- 1. USERS TABLE
+-- 1. ROLE PERMISSIONS TABLE (RBAC & Dynamic Menu)
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS role_permissions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    role VARCHAR(50) UNIQUE NOT NULL,
+    display_name VARCHAR(100) NOT NULL,
+    description TEXT,
+    allowed_routes JSONB NOT NULL DEFAULT '["/dashboard"]'::jsonb,
+    is_system BOOLEAN NOT NULL DEFAULT FALSE,
+    can_create BOOLEAN NOT NULL DEFAULT TRUE,
+    can_edit BOOLEAN NOT NULL DEFAULT TRUE,
+    can_delete BOOLEAN NOT NULL DEFAULT FALSE,
+    can_export BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_role_permissions_role ON role_permissions(role);
+
+-- -----------------------------------------------------------------------------
+-- 2. EXCHANGE RATES TABLE (BCV Official Rate Monitor)
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS exchange_rates (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    currency_pair VARCHAR(20) NOT NULL DEFAULT 'USD/VES',
+    rate NUMERIC(14, 4) NOT NULL,
+    source VARCHAR(50) NOT NULL DEFAULT 'BCV',
+    effective_date TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    notes TEXT,
+    admin_name VARCHAR(100),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_exchange_rates_active ON exchange_rates(is_active);
+
+-- -----------------------------------------------------------------------------
+-- 3. USERS TABLE
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -71,7 +89,7 @@ CREATE TABLE IF NOT EXISTS users (
     phone_number VARCHAR(30) UNIQUE NOT NULL,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
-    role user_role_enum NOT NULL DEFAULT 'PASSENGER',
+    role VARCHAR(50) NOT NULL DEFAULT 'PASSENGER',
     status user_status_enum NOT NULL DEFAULT 'ACTIVE',
     avatar_url TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -83,7 +101,7 @@ CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone_number);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 
 -- -----------------------------------------------------------------------------
--- 2. VEHICLES TABLE (Con Ficha Técnica Completa y Amenities Executivos)
+-- 4. VEHICLES TABLE (Ficha Técnica Ejecutiva y Amenities)
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS vehicles (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -109,7 +127,7 @@ CREATE INDEX IF NOT EXISTS idx_vehicles_license_plate ON vehicles(license_plate)
 CREATE INDEX IF NOT EXISTS idx_vehicles_status_category ON vehicles(status, category);
 
 -- -----------------------------------------------------------------------------
--- 3. VEHICLE DOCUMENTS TABLE
+-- 5. VEHICLE DOCUMENTS TABLE
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS vehicle_documents (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -129,13 +147,13 @@ CREATE TABLE IF NOT EXISTS vehicle_documents (
 CREATE INDEX IF NOT EXISTS idx_vehicle_docs_vehicle ON vehicle_documents(vehicle_id);
 
 -- -----------------------------------------------------------------------------
--- 4. DRIVERS TABLE
+-- 6. DRIVERS TABLE
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS drivers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     license_number VARCHAR(50) UNIQUE NOT NULL,
-    license_category VARCHAR(20) NOT NULL,
+    license_category VARCHAR(50) NOT NULL,
     license_expiration DATE NOT NULL,
     rating_avg NUMERIC(3, 2) NOT NULL DEFAULT 5.00,
     total_rides INT NOT NULL DEFAULT 0,
@@ -152,7 +170,7 @@ CREATE INDEX IF NOT EXISTS idx_drivers_online ON drivers(is_online) WHERE is_onl
 CREATE INDEX IF NOT EXISTS idx_drivers_lat_lng ON drivers(current_latitude, current_longitude);
 
 -- -----------------------------------------------------------------------------
--- 5. DRIVER DOCUMENTS TABLE
+-- 7. DRIVER DOCUMENTS TABLE
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS driver_documents (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -172,7 +190,7 @@ CREATE TABLE IF NOT EXISTS driver_documents (
 CREATE INDEX IF NOT EXISTS idx_driver_docs_driver ON driver_documents(driver_id);
 
 -- -----------------------------------------------------------------------------
--- 6. DRIVER VEHICLE ASSIGNMENTS (SHIFTS)
+-- 8. DRIVER VEHICLE ASSIGNMENTS (SHIFTS & ODOMETER)
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS driver_vehicle_assignments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -192,7 +210,7 @@ CREATE INDEX IF NOT EXISTS idx_assignments_driver ON driver_vehicle_assignments(
 CREATE INDEX IF NOT EXISTS idx_assignments_vehicle ON driver_vehicle_assignments(vehicle_id);
 
 -- -----------------------------------------------------------------------------
--- 7. RIDES TABLE
+-- 9. RIDES TABLE
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS rides (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -216,7 +234,7 @@ CREATE TABLE IF NOT EXISTS rides (
     total_fare NUMERIC(10, 2) NOT NULL,
     platform_fee NUMERIC(10, 2) NOT NULL,
     driver_net_earnings NUMERIC(10, 2) NOT NULL,
-    payment_method payment_method_enum NOT NULL,
+    payment_method VARCHAR(50) NOT NULL DEFAULT 'ZELLE',
     requested_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     accepted_at TIMESTAMP WITH TIME ZONE,
     arrived_at TIMESTAMP WITH TIME ZONE,
@@ -234,7 +252,7 @@ CREATE INDEX IF NOT EXISTS idx_rides_status ON rides(status);
 CREATE INDEX IF NOT EXISTS idx_rides_created_at ON rides(created_at DESC);
 
 -- -----------------------------------------------------------------------------
--- 8. RIDE LOCATIONS (TELEMETRY LOGS)
+-- 10. RIDE LOCATIONS (TELEMETRY LOGS)
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS ride_locations (
     id BIGSERIAL PRIMARY KEY,
@@ -250,7 +268,7 @@ CREATE TABLE IF NOT EXISTS ride_locations (
 CREATE INDEX IF NOT EXISTS idx_ride_loc_ride_time ON ride_locations(ride_id, timestamp DESC);
 
 -- -----------------------------------------------------------------------------
--- 9. TRANSACTIONS & BALANCES TABLE
+-- 11. TRANSACTIONS & BALANCES TABLE
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS driver_balances (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -281,7 +299,7 @@ CREATE INDEX IF NOT EXISTS idx_tx_driver ON transactions(driver_id);
 CREATE INDEX IF NOT EXISTS idx_tx_ride ON transactions(ride_id);
 
 -- -----------------------------------------------------------------------------
--- 10. REVIEWS & RATINGS TABLE
+-- 12. REVIEWS & RATINGS TABLE
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS reviews (
     id UUID UNIQUE PRIMARY KEY DEFAULT uuid_generate_v4(),
