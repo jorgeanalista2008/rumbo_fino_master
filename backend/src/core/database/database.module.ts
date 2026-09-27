@@ -43,6 +43,11 @@ import { RolePermissionEntity } from './entities/role-permission.entity';
           ExchangeRateEntity,
           RolePermissionEntity,
         ],
+        ssl:
+          configService.get<string>('DB_SSL') === 'true' ||
+          process.env.NODE_ENV === 'production'
+            ? { rejectUnauthorized: false }
+            : false,
         synchronize: false,
         logging: process.env.NODE_ENV === 'development',
       }),
