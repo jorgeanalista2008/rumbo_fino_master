@@ -112,7 +112,11 @@ class DriverRideModel {
       fareAmountVes: (json['fareAmountVes'] != null)
           ? (json['fareAmountVes'] as num).toDouble()
           : 0.0,
-      bcvRate: (json['bcvRate'] != null) ? (json['bcvRate'] as num).toDouble() : 36.50,
+      bcvRate: (json['bcvRate'] != null)
+          ? ((json['bcvRate'] is num)
+              ? (json['bcvRate'] as num).toDouble()
+              : (double.tryParse(json['bcvRate'].toString()) ?? 875.0))
+          : 875.0,
       requestedTier: json['requestedTier'] ?? 'BLACK',
       status: parseDriverRideStatus(json['status']),
       createdAt: json['createdAt'] != null

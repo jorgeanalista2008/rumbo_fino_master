@@ -95,9 +95,10 @@ class DriverShiftProvider extends ChangeNotifier {
 
     _socket.addBcvRateListener((data) {
       debugPrint('[DriverShiftProvider] Evento de Tasa BCV recibido vía WebSocket: $data');
-      if (data['rate'] != null) {
-        _bcvRate = (data['rate'] as num).toDouble();
-        _bcvDate = data['officialDate'] ?? data['effectiveDate'];
+      if (data != null && data['rate'] != null) {
+        final r = data['rate'];
+        _bcvRate = (r is num) ? r.toDouble() : (double.tryParse(r.toString()) ?? _bcvRate);
+        _bcvDate = data['officialDate']?.toString() ?? data['effectiveDate']?.toString();
         notifyListeners();
       }
     });
@@ -108,8 +109,10 @@ class DriverShiftProvider extends ChangeNotifier {
       final res = await _api.dio.get('/financials/exchange-rates/current');
       final data = res.data['data'] ?? res.data;
       if (data != null && data['rate'] != null) {
-        _bcvRate = (data['rate'] as num).toDouble();
-        _bcvDate = data['officialDate'] ?? data['effectiveDate'];
+        final r = data['rate'];
+        _bcvRate = (r is num) ? r.toDouble() : (double.tryParse(r.toString()) ?? 875.0);
+        _bcvDate = data['officialDate']?.toString() ?? data['effectiveDate']?.toString();
+        debugPrint('[DriverShiftProvider] Tasa BCV obtenida exitosamente: Bs. $_bcvRate');
         notifyListeners();
       }
     } catch (e) {

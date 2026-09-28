@@ -116,7 +116,10 @@ export class FinancialsService {
       await this.exchangeRateRepository.save(activeRate);
     }
 
-    return activeRate;
+    return {
+      ...activeRate,
+      rate: Number(activeRate.rate),
+    } as any;
   }
 
   async getExchangeRateHistory(currencyPair = 'USD_VES', limit = 50): Promise<ExchangeRateEntity[]> {

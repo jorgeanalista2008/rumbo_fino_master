@@ -198,24 +198,20 @@ class AssignedVehicleModel {
 
     return AssignedVehicleModel(
       id: json['id'] ?? '',
-      plateNumber: json['licensePlate'] ?? json['plateNumber'] ?? 'AB123CD',
-      brand: json['make'] ?? json['brand'] ?? 'Toyota',
-      model: json['model'] ?? 'Fortuner Executive',
+      plateNumber: json['licensePlate'] ?? json['plateNumber'] ?? '',
+      brand: json['make'] ?? json['brand'] ?? 'Vehículo',
+      model: json['model'] ?? '',
       year: json['year'] != null ? int.tryParse(json['year'].toString()) ?? 2024 : 2024,
-      color: json['color'] ?? 'Negro Obsidian Metalizado',
-      tier: json['category'] ?? json['tier'] ?? 'BLACK TIER',
+      color: json['color'] ?? 'No especificado',
+      tier: json['category'] ?? json['tier'] ?? 'VIP',
       status: json['status'] ?? 'EN SERVICIO',
       currentOdometer: json['currentOdometer'] != null
-          ? int.tryParse(json['currentOdometer'].toString()) ?? 15420
-          : 15420,
-      transmission: json['transmission'] ?? 'Automática Secuencial',
-      fuelType: json['fuelType'] ?? 'Gasolina Premium',
-      photos: photoList.isNotEmpty
-          ? photoList
-          : ['https://images.unsplash.com/photo-1617788138017-80ad40651399?w=800'],
-      amenities: amenityList.isNotEmpty
-          ? amenityList
-          : ['Wi-Fi 5G', 'Asientos de Cuero', 'Climatizador Tri-Zona', 'Agua de Cortesía'],
+          ? int.tryParse(json['currentOdometer'].toString()) ?? 0
+          : 0,
+      transmission: json['transmission'] ?? 'Automática',
+      fuelType: json['fuelType'] ?? 'Gasolina',
+      photos: photoList,
+      amenities: amenityList,
     );
   }
 }
