@@ -21,6 +21,14 @@ export default function LoginPage() {
       const response = await api.post('/auth/login', { email, password });
       const { user, accessToken } = response.data.data;
 
+      const role = (user.role || '').toUpperCase();
+      if (role === 'PASSENGER' || role === 'DRIVER') {
+        setError(
+          'Acceso restringido: Esta consola web es exclusiva para personal administrativo (Super Admin, Administrador de Flota, Despachador y Auditoría). Los pasajeros y choferes deben utilizar la aplicación móvil Rumbo Fino.',
+        );
+        return;
+      }
+
       localStorage.setItem('rumbo_fino_token', accessToken);
       localStorage.setItem('rumbo_fino_user', JSON.stringify(user));
 
@@ -110,10 +118,10 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Demo Credentials Quick Fill for all 5 Roles */}
+        {/* Demo Credentials Quick Fill for Administrative Roles */}
         <div className="mt-6 pt-5 border-t border-executive-border/60 space-y-2.5">
           <p className="text-xs font-bold text-gray-400 text-center uppercase tracking-wider">
-            Acceso Rápido por Perfil (5 Roles):
+            Acceso Rápido Administrativo:
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {/* Super Admin */}
@@ -161,34 +169,19 @@ export default function LoginPage() {
               <div className="text-[10px] text-gray-400 truncate">despacho@rumbofino.com</div>
             </button>
 
-            {/* Driver */}
+            {/* Auditor */}
             <button
               type="button"
               onClick={() => {
-                setEmail('chofer1@rumbofino.com');
-                setPassword('Chofer2026*');
+                setEmail('auditor@rumbofino.com');
+                setPassword('Auditor2026*');
               }}
               className="px-3 py-2 bg-executive-dark/80 hover:bg-executive-border border border-emerald-500/40 rounded-xl text-left text-xs transition-colors"
             >
               <div className="font-black text-emerald-400 flex items-center justify-between">
-                <span>🚗 Chofer VIP</span>
+                <span>📊 Auditor Financiero</span>
               </div>
-              <div className="text-[10px] text-gray-400 truncate">chofer1@rumbofino.com</div>
-            </button>
-
-            {/* Passenger */}
-            <button
-              type="button"
-              onClick={() => {
-                setEmail('pasajero1@rumbofino.com');
-                setPassword('Pasajero2026*');
-              }}
-              className="px-3 py-2 bg-executive-dark/80 hover:bg-executive-border border border-slate-500/40 rounded-xl text-left text-xs transition-colors sm:col-span-2"
-            >
-              <div className="font-black text-slate-300 flex items-center justify-between">
-                <span>👤 Cliente / Pasajero VIP</span>
-              </div>
-              <div className="text-[10px] text-gray-400 truncate">pasajero1@rumbofino.com</div>
+              <div className="text-[10px] text-gray-400 truncate">auditor@rumbofino.com</div>
             </button>
           </div>
         </div>
