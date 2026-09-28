@@ -38,7 +38,7 @@ export class DriversController {
   constructor(private readonly driversService: DriversService) {}
 
   @Post('upload-file')
-  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.DISPATCHER, UserRoleEnum.DRIVER)
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.FLEET_ADMIN, UserRoleEnum.DISPATCHER, UserRoleEnum.DRIVER)
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Subir archivo físico (Fotografía JPG/PNG o Expediente PDF) desde el navegador' })
@@ -51,7 +51,7 @@ export class DriversController {
   }
 
   @Post()
-  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.DISPATCHER)
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.FLEET_ADMIN, UserRoleEnum.DISPATCHER)
   @ApiOperation({ summary: 'Crear perfil de chofer ejecutivo vinculado a un usuario (Admin/Despachador)' })
   async createDriverProfile(@Body() dto: CreateDriverDto) {
     const driver = await this.driversService.createDriverProfile(dto);
@@ -59,7 +59,7 @@ export class DriversController {
   }
 
   @Get()
-  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.DISPATCHER)
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.FLEET_ADMIN, UserRoleEnum.DISPATCHER, UserRoleEnum.AUDITOR)
   @ApiOperation({ summary: 'Listar todos los choferes registrados' })
   async findAllDrivers() {
     const drivers = await this.driversService.findAllDrivers();
@@ -121,7 +121,7 @@ export class DriversController {
   }
 
   @Get(':id/full-profile')
-  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.DISPATCHER, UserRoleEnum.DRIVER)
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.FLEET_ADMIN, UserRoleEnum.DISPATCHER, UserRoleEnum.AUDITOR, UserRoleEnum.DRIVER)
   @ApiOperation({ summary: 'Obtener la ficha completa del chofer (Perfil, Expedientes digitalizados, Reputación y Balance)' })
   async getFullProfile(@Param('id') id: string) {
     const fullProfile = await this.driversService.getFullProfile(id);
@@ -129,7 +129,7 @@ export class DriversController {
   }
 
   @Post(':id/documents')
-  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.DISPATCHER, UserRoleEnum.DRIVER)
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.FLEET_ADMIN, UserRoleEnum.DISPATCHER, UserRoleEnum.DRIVER)
   @ApiOperation({ summary: 'Registrar/Subir documento o expediente al perfil del chofer (Licencia, Antecedentes, DNI)' })
   async uploadDriverDocument(
     @Param('id') id: string,
@@ -140,7 +140,7 @@ export class DriversController {
   }
 
   @Patch('documents/:docId/verify')
-  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.DISPATCHER)
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.FLEET_ADMIN, UserRoleEnum.DISPATCHER)
   @ApiOperation({ summary: 'Verificar y Aprobar/Rechazar un documento de chofer (Admin/Despachador)' })
   async verifyDriverDocument(
     @Param('docId') docId: string,
@@ -155,7 +155,7 @@ export class DriversController {
   }
 
   @Post(':id/assign-vehicle')
-  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.DISPATCHER)
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.FLEET_ADMIN, UserRoleEnum.DISPATCHER)
   @ApiOperation({ summary: 'Asignar un vehículo a un chofer desde la consola de administración/despacho' })
   async assignVehicleByAdmin(
     @Param('id') id: string,
@@ -166,7 +166,7 @@ export class DriversController {
   }
 
   @Post(':id/end-shift-admin')
-  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.DISPATCHER)
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.FLEET_ADMIN, UserRoleEnum.DISPATCHER)
   @ApiOperation({ summary: 'Cerrar turno de un chofer y liberar vehículo desde la consola de administración' })
   async endShiftByAdmin(
     @Param('id') id: string,
@@ -177,7 +177,7 @@ export class DriversController {
   }
 
   @Patch(':id')
-  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.DISPATCHER)
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.FLEET_ADMIN, UserRoleEnum.DISPATCHER)
   @ApiOperation({ summary: 'Actualizar perfil de chofer (licencia, datos personales o teléfono)' })
   async updateDriver(
     @Param('id') id: string,
@@ -188,7 +188,7 @@ export class DriversController {
   }
 
   @Delete(':id')
-  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.DISPATCHER)
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.FLEET_ADMIN)
   @ApiOperation({ summary: 'Eliminar o desactivar un perfil de chofer' })
   async deleteDriver(@Param('id') id: string) {
     await this.driversService.deleteDriver(id);

@@ -15,7 +15,7 @@ export class RidesController {
   constructor(private readonly ridesService: RidesService) {}
 
   @Post()
-  @Roles(UserRoleEnum.PASSENGER, UserRoleEnum.DISPATCHER, UserRoleEnum.SUPER_ADMIN)
+  @Roles(UserRoleEnum.PASSENGER, UserRoleEnum.DISPATCHER, UserRoleEnum.SUPER_ADMIN, UserRoleEnum.FLEET_ADMIN)
   @ApiOperation({ summary: 'Solicitar un nuevo viaje ejecutivo (Pasajero/Despachador)' })
   async createRide(@Body() dto: CreateRideDto) {
     const result = await this.ridesService.createRide(dto);
@@ -23,7 +23,7 @@ export class RidesController {
   }
 
   @Get('active')
-  @Roles(UserRoleEnum.DISPATCHER, UserRoleEnum.SUPER_ADMIN, UserRoleEnum.DRIVER)
+  @Roles(UserRoleEnum.DISPATCHER, UserRoleEnum.SUPER_ADMIN, UserRoleEnum.FLEET_ADMIN, UserRoleEnum.DRIVER, UserRoleEnum.AUDITOR)
   @ApiOperation({ summary: 'Obtener todos los viajes activos para la consola de monitoreo en tiempo real' })
   async getActiveRides() {
     const result = await this.ridesService.getActiveRides();
@@ -31,7 +31,7 @@ export class RidesController {
   }
 
   @Get()
-  @Roles(UserRoleEnum.DISPATCHER, UserRoleEnum.SUPER_ADMIN)
+  @Roles(UserRoleEnum.DISPATCHER, UserRoleEnum.SUPER_ADMIN, UserRoleEnum.FLEET_ADMIN, UserRoleEnum.AUDITOR)
   @ApiOperation({ summary: 'Listar historial completo de viajes' })
   async getAllRides() {
     const result = await this.ridesService.getAllRides();
@@ -39,7 +39,7 @@ export class RidesController {
   }
 
   @Patch(':id/status')
-  @Roles(UserRoleEnum.DRIVER, UserRoleEnum.DISPATCHER, UserRoleEnum.SUPER_ADMIN)
+  @Roles(UserRoleEnum.DRIVER, UserRoleEnum.DISPATCHER, UserRoleEnum.SUPER_ADMIN, UserRoleEnum.FLEET_ADMIN)
   @ApiOperation({ summary: 'Transicionar estado del viaje (ASIGNADO, EN_CAMINO, ABORDAJE, EN_CURSO, FINALIZADO, CANCELADO)' })
   async updateStatus(
     @Param('id') rideId: string,
@@ -51,7 +51,7 @@ export class RidesController {
   }
 
   @Post(':id/assign-driver')
-  @Roles(UserRoleEnum.DISPATCHER, UserRoleEnum.SUPER_ADMIN)
+  @Roles(UserRoleEnum.DISPATCHER, UserRoleEnum.SUPER_ADMIN, UserRoleEnum.FLEET_ADMIN)
   @ApiOperation({ summary: 'Asignar chofer y vehículo a un viaje solicitado' })
   async assignDriver(
     @Param('id') rideId: string,

@@ -18,15 +18,15 @@ export class FinancialsController {
   constructor(private readonly financialsService: FinancialsService) {}
 
   @Get('summary')
-  @Roles(UserRoleEnum.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Obtener reporte de recaudación financiera global y comisiones (Super Admin)' })
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.FLEET_ADMIN, UserRoleEnum.AUDITOR)
+  @ApiOperation({ summary: 'Obtener reporte de recaudación financiera global y comisiones (Super Admin / Fleet Admin / Auditor)' })
   async getAdminSummary() {
     const summary = await this.financialsService.getAdminFinancialSummary();
     return ApiResponseDto.ok(summary, 'Resumen financiero global');
   }
 
   @Get('balances')
-  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.DISPATCHER)
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.FLEET_ADMIN, UserRoleEnum.DISPATCHER, UserRoleEnum.AUDITOR)
   @ApiOperation({ summary: 'Consultar saldos y billeteras de todos los choferes' })
   async getAllBalances() {
     const list = await this.financialsService.getAllDriverBalances();

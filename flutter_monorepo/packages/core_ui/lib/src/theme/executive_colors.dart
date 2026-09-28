@@ -45,6 +45,7 @@ class ExecutiveColors {
   static const Color textPrimary = Color(0xFFF8FAFC);
   static const Color textSecondary = Color(0xFF94A3B8);
   static const Color textMuted = Color(0xFF64748B);
+  static const Color textTertiary = Color(0xFF64748B);
 
   // Borders
   static const Color border = Color(0xFF262C38);

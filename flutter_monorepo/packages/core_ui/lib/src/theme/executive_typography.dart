@@ -69,4 +69,10 @@ class ExecutiveTypography {
         fontWeight: FontWeight.w600,
         color: ExecutiveColors.textSecondary,
       );
+
+  static TextStyle get caption => GoogleFonts.plusJakartaSans(
+        fontSize: 11,
+        fontWeight: FontWeight.w500,
+        color: ExecutiveColors.textMuted,
+      );
 }
