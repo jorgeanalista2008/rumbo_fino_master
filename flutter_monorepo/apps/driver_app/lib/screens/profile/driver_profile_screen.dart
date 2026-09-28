@@ -31,15 +31,25 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
     final vehicle = profile?.vehicle;
     final user = profile?.user;
 
-    final String fullName = user?.fullName.isNotEmpty == true ? user!.fullName : 'Carlos Mendoza';
-    final String email = user?.email.isNotEmpty == true ? user!.email : 'carlos.mendoza@rumbofino.com';
-    final String phone = user?.phoneNumber?.isNotEmpty == true ? user!.phoneNumber! : '+58 412 111 0001';
+    final String fullName = user?.fullName.isNotEmpty == true
+        ? user!.fullName
+        : (profile?.user.fullName ?? 'Chofer Ejecutivo');
+    final String email = user?.email.isNotEmpty == true
+        ? user!.email
+        : (profile?.user.email ?? 'chofer@rumbofino.com');
+    final String phone = user?.phoneNumber?.isNotEmpty == true
+        ? user!.phoneNumber!
+        : 'Sin teléfono registrado';
     final String? avatarUrl = user?.avatarUrl;
-    final double rating = profile?.rating ?? 4.98;
-    final int totalTrips = profile?.totalTrips ?? 234;
-    final String licenseNumber = profile?.licenseNumber.isNotEmpty == true ? profile!.licenseNumber : 'LIC-5TA-0019283';
-    final String licenseCategory = profile?.licenseCategory.isNotEmpty == true ? profile!.licenseCategory : 'Quinta Profesional';
-    final String licenseExp = profile?.licenseExpiration ?? '31/12/2028';
+    final double rating = profile?.rating ?? 5.0;
+    final int totalTrips = profile?.totalTrips ?? 0;
+    final String licenseNumber = profile?.licenseNumber.isNotEmpty == true
+        ? profile!.licenseNumber
+        : 'Sin licencia registrada';
+    final String licenseCategory = profile?.licenseCategory.isNotEmpty == true
+        ? profile!.licenseCategory
+        : 'Quinta Profesional';
+    final String licenseExp = profile?.licenseExpiration ?? 'Vigente';
 
     return Scaffold(
       backgroundColor: ExecutiveColors.background,
@@ -272,118 +282,153 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
 
               // 3. VEHÍCULO ASIGNADO EN DETALLE
               Container(
+                padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
                   color: ExecutiveColors.surface,
                   borderRadius: BorderRadius.circular(22),
                   border: Border.all(color: ExecutiveColors.border),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Vehicle Photo Banner
-                    if (vehicle != null && vehicle.photos.isNotEmpty)
-                      ClipRRect(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
-                        child: Stack(
-                          children: [
-                            Image.network(
-                              vehicle.photos.first,
-                              height: 170,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
-                                height: 140,
-                                color: ExecutiveColors.surfaceElevated,
-                                child: const Center(
-                                  child: Icon(Icons.directions_car, color: ExecutiveColors.gold, size: 48),
+                child: vehicle == null
+                    ? Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'VEHÍCULO ASIGNADO',
+                                style: ExecutiveTypography.caption.copyWith(
+                                  color: ExecutiveColors.gold,
+                                  letterSpacing: 1.2,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
+                              const RfBadge(text: 'SIN ASIGNAR', variant: RfBadgeVariant.warning),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          Container(
+                            width: 68,
+                            height: 68,
+                            decoration: BoxDecoration(
+                              color: ExecutiveColors.surfaceElevated,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: ExecutiveColors.border),
                             ),
-                            Container(
-                              height: 170,
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [
-                                    Colors.transparent,
-                                    ExecutiveColors.surface.withOpacity(0.95),
-                                  ],
-                                ),
-                              ),
+                            child: const Icon(Icons.directions_car_outlined, color: ExecutiveColors.gold, size: 34),
+                          ),
+                          const SizedBox(height: 14),
+                          Text(
+                            'Sin Unidad Asignada',
+                            style: ExecutiveTypography.h3.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
                             ),
-                            Positioned(
-                              top: 12,
-                              left: 14,
-                              child: RfBadge(
-                                text: vehicle.status,
-                                variant: RfBadgeVariant.success,
-                              ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'No tienes un vehículo vinculado para este turno. Puedes seleccionar una unidad disponible al presionar "Iniciar Turno" o solicitar su asignación desde el Backoffice.',
+                            textAlign: TextAlign.center,
+                            style: ExecutiveTypography.bodySmall.copyWith(
+                              color: ExecutiveColors.textSecondary,
+                              height: 1.4,
                             ),
-                            Positioned(
-                              top: 12,
-                              right: 14,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.7),
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: ExecutiveColors.gold.withOpacity(0.5)),
-                                ),
-                                child: Text(
-                                  vehicle.tier,
-                                  style: ExecutiveTypography.caption.copyWith(
-                                    color: ExecutiveColors.gold,
-                                    fontWeight: FontWeight.bold,
+                          ),
+                        ],
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Vehicle Photo Banner
+                          if (vehicle.photos.isNotEmpty) ...[
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(16),
+                              child: Stack(
+                                children: [
+                                  Image.network(
+                                    vehicle.photos.first,
+                                    height: 170,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      height: 140,
+                                      color: ExecutiveColors.surfaceElevated,
+                                      child: const Center(
+                                        child: Icon(Icons.directions_car, color: ExecutiveColors.gold, size: 48),
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                  Container(
+                                    height: 170,
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                        colors: [
+                                          Colors.transparent,
+                                          ExecutiveColors.surface.withOpacity(0.95),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    top: 12,
+                                    left: 14,
+                                    child: RfBadge(
+                                      text: vehicle.status,
+                                      variant: RfBadgeVariant.success,
+                                    ),
+                                  ),
+                                  Positioned(
+                                    top: 12,
+                                    right: 14,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withOpacity(0.7),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: ExecutiveColors.gold.withOpacity(0.5)),
+                                      ),
+                                      child: Text(
+                                        vehicle.tier,
+                                        style: ExecutiveTypography.caption.copyWith(
+                                          color: ExecutiveColors.gold,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    bottom: 12,
+                                    left: 14,
+                                    child: Text(
+                                      '${vehicle.brand} ${vehicle.model} (${vehicle.year})',
+                                      style: ExecutiveTypography.h3.copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            Positioned(
-                              bottom: 12,
-                              left: 14,
-                              child: Text(
-                                '${vehicle.brand} ${vehicle.model} (${vehicle.year})',
-                                style: ExecutiveTypography.h3.copyWith(
+                            const SizedBox(height: 14),
+                          ],
+
+                          // Vehicle Header
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                '${vehicle.brand} ${vehicle.model}',
+                                style: ExecutiveTypography.bodyLarge.copyWith(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                    Padding(
-                      padding: const EdgeInsets.all(18),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (vehicle == null || vehicle.photos.isEmpty) ...[
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'VEHÍCULO ASIGNADO',
-                                  style: ExecutiveTypography.caption.copyWith(
-                                    color: ExecutiveColors.gold,
-                                    letterSpacing: 1.2,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const RfBadge(text: 'BLACK TIER', variant: RfBadgeVariant.gold),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              vehicle?.displayName ?? 'Toyota Fortuner Executive (AB123CD)',
-                              style: ExecutiveTypography.bodyLarge.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                          ],
+                              RfBadge(text: vehicle.tier, variant: RfBadgeVariant.gold),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
 
                           // Vehicle Specs Grid
                           Container(
@@ -398,72 +443,64 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
                                 _buildSpecRow(
                                   icon: Icons.tag,
                                   label: 'Placa VIP',
-                                  value: vehicle?.plateNumber ?? 'AB123CD',
+                                  value: vehicle.plateNumber,
                                   isGold: true,
                                 ),
                                 const Divider(color: ExecutiveColors.border, height: 16),
                                 _buildSpecRow(
                                   icon: Icons.speed,
                                   label: 'Odómetro / Kilometraje',
-                                  value: '${vehicle?.currentOdometer ?? 15420} KM',
+                                  value: '${vehicle.currentOdometer} KM',
                                 ),
                                 const Divider(color: ExecutiveColors.border, height: 16),
                                 _buildSpecRow(
                                   icon: Icons.palette,
                                   label: 'Color de Carrocería',
-                                  value: vehicle?.color ?? 'Negro Obsidian Metalizado',
+                                  value: vehicle.color,
                                 ),
                                 const Divider(color: ExecutiveColors.border, height: 16),
                                 _buildSpecRow(
                                   icon: Icons.settings,
                                   label: 'Transmisión & Motor',
-                                  value: vehicle?.transmission ?? 'Automática Secuencial',
+                                  value: vehicle.transmission,
                                 ),
                               ],
                             ),
                           ),
 
-                          const SizedBox(height: 12),
-
-                          // Amenities Pills
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: (vehicle?.amenities ?? [
-                              'Wi-Fi 5G',
-                              'Cuero Nappa',
-                              'Climatizador Tri-Zona',
-                              'Agua Evian',
-                            ]).map((amenity) {
-                              return Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                decoration: BoxDecoration(
-                                  color: ExecutiveColors.surfaceElevated,
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: ExecutiveColors.border),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(Icons.check_circle_outline, color: ExecutiveColors.gold, size: 12),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      amenity,
-                                      style: ExecutiveTypography.caption.copyWith(
-                                        color: Colors.white70,
-                                        fontSize: 10,
+                          if (vehicle.amenities.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: vehicle.amenities.map((amenity) {
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: ExecutiveColors.surfaceElevated,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: ExecutiveColors.border),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.check_circle_outline, color: ExecutiveColors.gold, size: 12),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        amenity,
+                                        style: ExecutiveTypography.caption.copyWith(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                        ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }).toList(),
-                          ),
+                                    ],
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ],
                         ],
                       ),
-                    ),
-                  ],
-                ),
               ),
 
               const SizedBox(height: 18),

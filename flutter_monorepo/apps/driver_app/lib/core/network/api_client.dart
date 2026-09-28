@@ -34,7 +34,8 @@ class ApiClient {
           return handler.next(options);
         },
         onError: (DioException error, handler) async {
-          if (error.response?.statusCode == 401) {
+          if (error.response?.statusCode == 401 &&
+              !error.requestOptions.path.contains('/auth/login')) {
             final prefs = await SharedPreferences.getInstance();
             await prefs.remove('driver_access_token');
             await prefs.remove('driver_user_data');

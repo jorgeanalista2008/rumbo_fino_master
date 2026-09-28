@@ -481,7 +481,6 @@ export class DriversService {
               ? driver.currentVehicle.photos
               : [
                   'https://images.unsplash.com/photo-1617788138017-80ad40651399?w=800',
-                  'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=800',
                 ],
         }
       : recentAssignments[0]?.vehicle
@@ -495,20 +494,7 @@ export class DriversService {
                   'https://images.unsplash.com/photo-1617788138017-80ad40651399?w=800',
                 ],
         }
-      : {
-          id: 'v-default',
-          make: 'Toyota',
-          model: 'Fortuner Executive',
-          year: 2024,
-          color: 'Negro Obsidian Metalizado',
-          licensePlate: 'AB123CD',
-          category: 'EXECUTIVE_SUV',
-          status: 'AVAILABLE',
-          currentOdometer: 15420,
-          transmission: 'Automática Secuencial',
-          fuelType: 'Gasolina Premium',
-          photos: ['https://images.unsplash.com/photo-1617788138017-80ad40651399?w=800'],
-        };
+      : null;
 
     const reviews = [
       {

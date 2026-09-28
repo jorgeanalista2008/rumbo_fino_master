@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, Inject, forwardRef, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 
 import { DriverBalanceEntity } from '../../core/database/entities/driver-balance.entity';
 import { TransactionEntity } from '../../core/database/entities/transaction.entity';
@@ -81,16 +81,32 @@ export class FinancialsService {
   // ==========================================
 
   async getCurrentExchangeRate(currencyPair = 'USD_VES'): Promise<ExchangeRateEntity> {
+    const pairVariants = [
+      currencyPair,
+      currencyPair.replace('_', '/'),
+      currencyPair.replace('/', '_'),
+      'USD_VES',
+      'USD/VES',
+    ];
+
     let activeRate = await this.exchangeRateRepository.findOne({
-      where: { currencyPair, isActive: true },
+      where: { currencyPair: In(pairVariants), isActive: true },
       order: { effectiveDate: 'DESC', createdAt: 'DESC' },
     });
+
+    if (!activeRate) {
+      // Fallback search for any active rate
+      activeRate = await this.exchangeRateRepository.findOne({
+        where: { isActive: true },
+        order: { effectiveDate: 'DESC', createdAt: 'DESC' },
+      });
+    }
 
     if (!activeRate) {
       // Fallback default if not seeded
       activeRate = this.exchangeRateRepository.create({
         currencyPair: 'USD_VES',
-        rate: 65.5000,
+        rate: 875.0000,
         source: 'BCV',
         effectiveDate: new Date(),
         isActive: true,

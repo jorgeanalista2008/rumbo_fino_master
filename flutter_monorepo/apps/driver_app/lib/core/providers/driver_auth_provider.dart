@@ -21,7 +21,7 @@ class DriverAuthProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   String? get token => _token;
   DriverProfileModel? get profile => _profile;
-  bool get isAuthenticated => _token != null && _profile != null;
+  bool get isAuthenticated => _token != null && _token!.isNotEmpty;
 
   Future<void> initAuth() async {
     try {
