@@ -8,7 +8,7 @@ import { api } from '@/lib/api';
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('admin@rumbofino.com');
-  const [password, setPassword] = useState('Admin123!');
+  const [password, setPassword] = useState('Admin2026*');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 

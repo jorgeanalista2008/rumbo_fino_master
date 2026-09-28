@@ -2,10 +2,14 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { LogOut, User, Bell } from 'lucide-react';
+import { LogOut, User, Bell, Menu } from 'lucide-react';
 import { getAuthUser } from '@/lib/api';
 
-export default function Navbar() {
+interface NavbarProps {
+  onToggleSidebar?: () => void;
+}
+
+export default function Navbar({ onToggleSidebar }: NavbarProps) {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
 
@@ -21,12 +25,23 @@ export default function Navbar() {
   };
 
   return (
-    <header className="h-16 bg-executive-card border-b border-executive-border px-6 flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-gray-400">Consola de Control:</span>
-        <span className="text-xs font-semibold text-luxury-gold uppercase bg-luxury-gold/10 px-2.5 py-1 rounded-full border border-luxury-gold/20">
-          {user?.role || 'DESPACHADOR'}
-        </span>
+    <header className="h-16 bg-executive-card border-b border-executive-border px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30">
+      <div className="flex items-center gap-3">
+        {/* Mobile Hamburger Button */}
+        <button
+          onClick={onToggleSidebar}
+          className="lg:hidden p-2 text-gray-400 hover:text-white rounded-xl hover:bg-executive-border/50 transition-colors"
+          aria-label="Abrir menú de navegación"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-400 hidden sm:inline">Consola:</span>
+          <span className="text-xs font-semibold text-luxury-gold uppercase bg-luxury-gold/10 px-2.5 py-1 rounded-full border border-luxury-gold/20">
+            {user?.role || 'SUPER_ADMIN'}
+          </span>
+        </div>
       </div>
 
       <div className="flex items-center gap-4">

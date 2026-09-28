@@ -14,6 +14,7 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const [authorized, setAuthorized] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('rumbo_fino_token');
@@ -34,11 +35,11 @@ export default function DashboardLayout({
 
   return (
     <PermissionsProvider>
-      <div className="flex min-h-screen bg-executive-dark">
-        <Sidebar />
-        <div className="flex-1 flex flex-col min-w-0">
-          <Navbar />
-          <main className="flex-1 p-6 overflow-y-auto">
+      <div className="flex min-h-screen bg-executive-dark overflow-x-hidden">
+        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <div className="flex-1 flex flex-col min-w-0 min-h-screen overflow-x-hidden">
+          <Navbar onToggleSidebar={() => setSidebarOpen((prev) => !prev)} />
+          <main className="flex-1 p-3.5 sm:p-5 md:p-6 overflow-y-auto w-full max-w-full">
             <PermissionGuard>{children}</PermissionGuard>
           </main>
         </div>
