@@ -316,7 +316,7 @@ export default function DispatchPage() {
     const active = rides.filter((r) => ['ASIGNADO', 'EN_CAMINO', 'ABORDAJE', 'EN_CURSO'].includes(r.status)).length;
     const requested = rides.filter((r) => r.status === 'SOLICITADO').length;
     const completed = rides.filter((r) => r.status === 'FINALIZADO').length;
-    const onlineDrivers = drivers.filter((d) => d.isOnline || d.currentVehicleId).length;
+    const onlineDrivers = drivers.filter((d) => d.isOnline === true).length;
     return { active, requested, completed, onlineDrivers };
   }, [rides, drivers]);
 
@@ -334,7 +334,7 @@ export default function DispatchPage() {
     return rides;
   }, [rides, statusTabFilter]);
 
-  // Map Markers (Active Rides + All Online Fleet Chauffeurs)
+  // Map Markers (Active Rides + All Truly Online Fleet Chauffeurs)
   const mapMarkers = useMemo(() => {
     const items: MarkerItem[] = [];
     const representedDriverIds = new Set<string>();
@@ -380,34 +380,28 @@ export default function DispatchPage() {
       }
     });
 
-    // 2. Plot all Online / Active Drivers (Roaming Chauffeurs in Service)
-    drivers.forEach((d, idx) => {
-      if ((d.isOnline || d.currentVehicleId) && !representedDriverIds.has(d.id)) {
+    // 2. Plot ONLY Truly Online Drivers (Roaming Chauffeurs in Service)
+    drivers.forEach((d) => {
+      if (d.isOnline && !representedDriverIds.has(d.id)) {
         const liveLoc = liveDriverLocations[d.id];
-        // Caracas executive corridor spread
-        const caracasSpots = [
-          { lat: 10.4806, lng: -66.9036 }, // Centro
-          { lat: 10.4735, lng: -66.8532 }, // Las Mercedes / Chuao
-          { lat: 10.4988, lng: -66.8521 }, // Altamira / La Castellana
-          { lat: 10.4890, lng: -66.8650 }, // El Rosal
-        ];
-        const spot = caracasSpots[idx % caracasSpots.length];
-        const driverLat = liveLoc?.lat || spot.lat;
-        const driverLng = liveLoc?.lng || spot.lng;
+        const driverLat = liveLoc?.lat ? Number(liveLoc.lat) : (d.currentLatitude ? Number(d.currentLatitude) : null);
+        const driverLng = liveLoc?.lng ? Number(liveLoc.lng) : (d.currentLongitude ? Number(d.currentLongitude) : null);
 
-        const vMake = d.currentVehicle?.make || d.assignedVehicle?.make || 'Mercedes-Benz';
-        const vModel = d.currentVehicle?.model || d.assignedVehicle?.model || 'E-Class VIP';
-        const vPlate = d.currentVehicle?.licensePlate || d.assignedVehicle?.plateNumber || 'VIP-777';
+        if (driverLat !== null && driverLng !== null) {
+          const vMake = d.currentVehicle?.make || d.assignedVehicle?.make || 'Vehículo';
+          const vModel = d.currentVehicle?.model || d.assignedVehicle?.model || 'Ejecutivo';
+          const vPlate = d.currentVehicle?.licensePlate || d.assignedVehicle?.plateNumber || 'VIP';
 
-        items.push({
-          id: `roaming-driver-${d.id}`,
-          lat: driverLat,
-          lng: driverLng,
-          title: `${vMake} ${vModel} (${vPlate})`,
-          subtitle: `Chofer: ${d.user?.firstName || 'Carlos'} ${d.user?.lastName || 'Mendoza'} • EN LÍNEA`,
-          type: 'vehicle' as const,
-          status: 'EN_LINEA',
-        });
+          items.push({
+            id: `roaming-driver-${d.id}`,
+            lat: driverLat,
+            lng: driverLng,
+            title: `${vMake} ${vModel} (${vPlate})`,
+            subtitle: `Chofer: ${d.user?.firstName || 'Chofer'} ${d.user?.lastName || ''} • 🟢 EN LÍNEA`,
+            type: 'vehicle' as const,
+            status: 'EN_LINEA',
+          });
+        }
       }
     });
 
@@ -656,9 +650,9 @@ export default function DispatchPage() {
 
           <div className="h-[520px] rounded-3xl overflow-hidden border border-executive-border shadow-2xl">
             <OpenStreetMap
-              centerLat={selectedRide?.originLat || 10.4806}
-              centerLng={selectedRide?.originLng || -66.8622}
-              zoom={13}
+              centerLat={selectedRide?.originLat || (mapMarkers.length > 0 ? mapMarkers[0].lat : 10.252291)}
+              centerLng={selectedRide?.originLng || (mapMarkers.length > 0 ? mapMarkers[0].lng : -68.797418)}
+              zoom={mapMarkers.length > 0 ? 14 : 12}
               markers={mapMarkers}
               routePolyline={activeRoutePolyline}
               selectionMode={mapSelectionMode}
