@@ -7,6 +7,8 @@ import { DriverBalanceEntity } from '../../core/database/entities/driver-balance
 import { TransactionEntity } from '../../core/database/entities/transaction.entity';
 import { UserEntity } from '../../core/database/entities/user.entity';
 import { VehicleEntity } from '../../core/database/entities/vehicle.entity';
+import { ExchangeRateEntity } from '../../core/database/entities/exchange-rate.entity';
+import { ReviewEntity } from '../../core/database/entities/review.entity';
 import { RidesController } from './presentation/rides.controller';
 import { RidesService } from './application/services/rides.service';
 import { RidesGateway } from './presentation/rides.gateway';
@@ -21,6 +23,8 @@ import { RidesGateway } from './presentation/rides.gateway';
       TransactionEntity,
       UserEntity,
       VehicleEntity,
+      ReviewEntity,
+      ExchangeRateEntity,
     ]),
   ],
   controllers: [RidesController],

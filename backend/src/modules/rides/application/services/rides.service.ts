@@ -14,6 +14,9 @@ import { DriverBalanceEntity } from '../../../../core/database/entities/driver-b
 import { TransactionEntity } from '../../../../core/database/entities/transaction.entity';
 import { RideStatusEnum } from '../../../../common/enums/roles.enum';
 import { RideStateMachine } from '../../domain/state-machine/ride-state.machine';
+import { ReviewEntity } from '../../../../core/database/entities/review.entity';
+import { ExchangeRateEntity } from '../../../../core/database/entities/exchange-rate.entity';
+import { VehicleCategoryEnum } from '../../../../common/enums/roles.enum';
 import { RidesGateway } from '../../presentation/rides.gateway';
 import { RedisService } from '../../../../core/redis/redis.service';
 import { CreateRideDto } from '../../dto/create-ride.dto';
@@ -37,6 +40,10 @@ export class RidesService {
     private readonly userRepository: Repository<UserEntity>,
     @InjectRepository(VehicleEntity)
     private readonly vehicleRepository: Repository<VehicleEntity>,
+    @InjectRepository(ReviewEntity)
+    private readonly reviewRepository: Repository<ReviewEntity>,
+    @InjectRepository(ExchangeRateEntity)
+    private readonly exchangeRateRepository: Repository<ExchangeRateEntity>,
     private readonly ridesGateway: RidesGateway,
     private readonly redisService: RedisService,
   ) {}
@@ -302,6 +309,163 @@ export class RidesService {
       );
       await this.balanceRepository.save(balance);
     }
+  }
+
+  async getActiveRideForPassenger(passengerId: string): Promise<any | null> {
+    const ride = await this.rideRepository.findOne({
+      where: {
+        passengerId,
+        status: In([
+          RideStatusEnum.SOLICITADO,
+          RideStatusEnum.ASIGNADO,
+          RideStatusEnum.EN_CAMINO,
+          RideStatusEnum.ABORDAJE,
+          RideStatusEnum.EN_CURSO,
+        ]),
+      },
+      relations: ['passenger', 'driver', 'driver.user', 'vehicle'],
+      order: { requestedAt: 'DESC' },
+    });
+    return ride ? this.formatRideResponse(ride) : null;
+  }
+
+  async getRideHistoryForPassenger(passengerId: string): Promise<any[]> {
+    const list = await this.rideRepository.find({
+      where: { passengerId },
+      relations: ['passenger', 'driver', 'driver.user', 'vehicle'],
+      order: { requestedAt: 'DESC' },
+      take: 30,
+    });
+    return list.map((r) => this.formatRideResponse(r));
+  }
+
+  async estimateFareCategories(dto: {
+    originLat: number;
+    originLng: number;
+    destinationLat: number;
+    destinationLng: number;
+  }): Promise<any> {
+    const distanceKm = Math.max(
+      0.5,
+      Number(this.calculateDistanceKm(dto.originLat, dto.originLng, dto.destinationLat, dto.destinationLng).toFixed(2)),
+    );
+    const estimatedMinutes = Math.max(5, Math.ceil(distanceKm * 2.5 + 5));
+
+    // Get current active BCV rate
+    let bcvRate = 875.0;
+    try {
+      const activeRate = await this.exchangeRateRepository.findOne({
+        where: { currencyPair: 'USD_VES', isActive: true },
+        order: { effectiveDate: 'DESC' },
+      });
+      if (activeRate) {
+        bcvRate = Number(activeRate.rate);
+      }
+    } catch (_) {}
+
+    const tiers = [
+      {
+        id: VehicleCategoryEnum.EXECUTIVE_SEDAN,
+        name: 'Sedán Ejecutivo',
+        subtitle: 'Toyota Corolla / Camry / Mercedes Clase C',
+        badge: 'PREMIUM',
+        capacity: '4 Pasajeros',
+        baseFareUsd: 8.0,
+        perKmUsd: 1.2,
+        minimumFareUsd: 10.0,
+        icon: 'sedan',
+      },
+      {
+        id: VehicleCategoryEnum.VIP_SUV,
+        name: 'SUV Ejecutiva',
+        subtitle: 'Toyota Fortuner / 4Runner / Tahoe',
+        badge: 'VIP CONFORT',
+        capacity: '5-6 Pasajeros',
+        baseFareUsd: 15.0,
+        perKmUsd: 1.8,
+        minimumFareUsd: 18.0,
+        icon: 'suv',
+      },
+      {
+        id: VehicleCategoryEnum.PREMIUM_VAN,
+        name: 'Van Ejecutiva',
+        subtitle: 'Toyota HiAce VIP / Mercedes Sprinter',
+        badge: 'GRUPO EJECUTIVO',
+        capacity: '8-12 Pasajeros',
+        baseFareUsd: 25.0,
+        perKmUsd: 2.5,
+        minimumFareUsd: 30.0,
+        icon: 'van',
+      },
+      {
+        id: VehicleCategoryEnum.LUXURY_ARMORED,
+        name: 'Blindado VIP',
+        subtitle: 'Blindaje Nivel IV/V con Chofer Escolta',
+        badge: 'MÁXIMA SEGURIDAD',
+        capacity: '4 Pasajeros',
+        baseFareUsd: 50.0,
+        perKmUsd: 4.0,
+        minimumFareUsd: 60.0,
+        icon: 'shield',
+      },
+    ];
+
+    const estimates = tiers.map((tier) => {
+      const rawUsd = tier.baseFareUsd + distanceKm * tier.perKmUsd;
+      const fareUsd = Number(Math.max(tier.minimumFareUsd, rawUsd).toFixed(2));
+      const fareVes = Number((fareUsd * bcvRate).toFixed(2));
+
+      return {
+        category: tier.id,
+        name: tier.name,
+        subtitle: tier.subtitle,
+        badge: tier.badge,
+        capacity: tier.capacity,
+        icon: tier.icon,
+        distanceKm,
+        estimatedMinutes,
+        fareUsd,
+        fareVes,
+        bcvRate,
+      };
+    });
+
+    return {
+      distanceKm,
+      estimatedMinutes,
+      bcvRate,
+      categories: estimates,
+    };
+  }
+
+  async rateRide(
+    rideId: string,
+    authorId: string,
+    dto: {
+      rating: number;
+      comment?: string;
+      cleanlinessRating?: number;
+      punctualityRating?: number;
+      comfortRating?: number;
+    },
+  ): Promise<any> {
+    const ride = await this.rideRepository.findOne({ where: { id: rideId }, relations: ['driver'] });
+    if (!ride) {
+      throw new NotFoundException(`Viaje no encontrado`);
+    }
+
+    const review = this.reviewRepository.create({
+      rideId,
+      authorId,
+      targetId: ride.driver?.userId || ride.driverId || authorId,
+      rating: Math.min(5, Math.max(1, dto.rating)),
+      comment: dto.comment,
+      cleanlinessRating: dto.cleanlinessRating,
+      punctualityRating: dto.punctualityRating,
+      comfortRating: dto.comfortRating,
+    });
+
+    return await this.reviewRepository.save(review);
   }
 
   private calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {

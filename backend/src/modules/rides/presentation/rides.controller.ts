@@ -4,8 +4,10 @@ import { RidesService, CreateRideDto } from '../application/services/rides.servi
 import { RideStatusEnum, UserRoleEnum } from '../../../common/enums/roles.enum';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../../common/guards/roles.guard';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { ApiResponseDto } from '../../../common/dto/api-response.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { UserEntity } from '../../../core/database/entities/user.entity';
 
 @ApiTags('Rides')
 @ApiBearerAuth('JWT-auth')
@@ -17,9 +19,44 @@ export class RidesController {
   @Post()
   @Roles(UserRoleEnum.PASSENGER, UserRoleEnum.DISPATCHER, UserRoleEnum.SUPER_ADMIN, UserRoleEnum.FLEET_ADMIN)
   @ApiOperation({ summary: 'Solicitar un nuevo viaje ejecutivo (Pasajero/Despachador)' })
-  async createRide(@Body() dto: CreateRideDto) {
+  async createRide(@Body() dto: CreateRideDto, @CurrentUser() user: UserEntity) {
+    if (!dto.passengerId && user?.role === UserRoleEnum.PASSENGER) {
+      dto.passengerId = user.id;
+    }
     const result = await this.ridesService.createRide(dto);
     return ApiResponseDto.ok(result, 'Viaje solicitado exitosamente');
+  }
+
+  @Post('estimate')
+  @Roles(UserRoleEnum.PASSENGER, UserRoleEnum.DISPATCHER, UserRoleEnum.SUPER_ADMIN, UserRoleEnum.FLEET_ADMIN, UserRoleEnum.DRIVER)
+  @ApiOperation({ summary: 'Estimar tarifas en USD y VES para todas las categorías de flota VIP' })
+  async estimateFare(
+    @Body()
+    dto: {
+      originLat: number;
+      originLng: number;
+      destinationLat: number;
+      destinationLng: number;
+    },
+  ) {
+    const result = await this.ridesService.estimateFareCategories(dto);
+    return ApiResponseDto.ok(result, 'Cotización de tarifas generada');
+  }
+
+  @Get('passenger/active')
+  @Roles(UserRoleEnum.PASSENGER, UserRoleEnum.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Consultar el viaje activo actual del pasajero autenticado' })
+  async getPassengerActiveRide(@CurrentUser() user: UserEntity) {
+    const result = await this.ridesService.getActiveRideForPassenger(user.id);
+    return ApiResponseDto.ok(result);
+  }
+
+  @Get('passenger/history')
+  @Roles(UserRoleEnum.PASSENGER, UserRoleEnum.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Consultar historial de viajes del pasajero autenticado' })
+  async getPassengerRideHistory(@CurrentUser() user: UserEntity) {
+    const result = await this.ridesService.getRideHistoryForPassenger(user.id);
+    return ApiResponseDto.ok(result);
   }
 
   @Get('active')
@@ -39,15 +76,35 @@ export class RidesController {
   }
 
   @Patch(':id/status')
-  @Roles(UserRoleEnum.DRIVER, UserRoleEnum.DISPATCHER, UserRoleEnum.SUPER_ADMIN, UserRoleEnum.FLEET_ADMIN)
+  @Roles(UserRoleEnum.PASSENGER, UserRoleEnum.DRIVER, UserRoleEnum.DISPATCHER, UserRoleEnum.SUPER_ADMIN, UserRoleEnum.FLEET_ADMIN)
   @ApiOperation({ summary: 'Transicionar estado del viaje (ASIGNADO, EN_CAMINO, ABORDAJE, EN_CURSO, FINALIZADO, CANCELADO)' })
   async updateStatus(
     @Param('id') rideId: string,
     @Body('status') status: RideStatusEnum,
     @Body('driverId') driverId?: string,
+    @Body('cancellationReason') cancellationReason?: string,
   ) {
-    const result = await this.ridesService.updateRideStatus(rideId, status, driverId);
+    const result = await this.ridesService.updateRideStatus(rideId, status, driverId, cancellationReason);
     return ApiResponseDto.ok(result, `Estado del viaje actualizado a ${status}`);
+  }
+
+  @Post(':id/rate')
+  @Roles(UserRoleEnum.PASSENGER, UserRoleEnum.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Calificar chofer y experiencia de viaje' })
+  async rateRide(
+    @Param('id') rideId: string,
+    @CurrentUser() user: UserEntity,
+    @Body()
+    dto: {
+      rating: number;
+      comment?: string;
+      cleanlinessRating?: number;
+      punctualityRating?: number;
+      comfortRating?: number;
+    },
+  ) {
+    const result = await this.ridesService.rateRide(rideId, user.id, dto);
+    return ApiResponseDto.ok(result, 'Calificación registrada exitosamente');
   }
 
   @Post(':id/assign-driver')
@@ -69,3 +126,4 @@ export class RidesController {
     return ApiResponseDto.ok(result);
   }
 }
+
