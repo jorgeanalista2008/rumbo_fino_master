@@ -1,8 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:core_ui/core_ui.dart';
+import 'core/providers/auth_provider.dart';
+import 'core/providers/ride_provider.dart';
+import 'screens/splash/splash_screen.dart';
 
 void main() {
-  runApp(const RumboFinoPassengerApp());
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Set transparent system bars with light icons for Dark Executive Luxury theme
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      systemNavigationBarColor: ExecutiveColors.background,
+      systemNavigationBarIconBrightness: Brightness.light,
+    ),
+  );
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => RideProvider()),
+      ],
+      child: const RumboFinoPassengerApp(),
+    ),
+  );
 }
 
 class RumboFinoPassengerApp extends StatelessWidget {
@@ -11,56 +36,10 @@ class RumboFinoPassengerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Rumbo Fino - VIP Passenger',
-      theme: ExecutiveTheme.themeData,
-      home: const PassengerHomeScreen(),
+      title: 'Rumbo Fino - Pasajeros',
       debugShowCheckedModeBanner: false,
-    );
-  }
-}
-
-class PassengerHomeScreen extends StatelessWidget {
-  const PassengerHomeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('RUMBO FINO VIP'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Bienvenido, Cliente VIP',
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-                color: ExecutiveTheme.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Solicita tu traslado ejecutivo con máxima puntualidad y confort.',
-              style: TextStyle(
-                fontSize: 16,
-                color: ExecutiveTheme.textSecondary,
-              ),
-            ),
-            const Spacer(),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.local_taxi),
-                label: const Text('SOLICITAR VIAJE EJECUTIVO'),
-              ),
-            ),
-          ],
-        ),
-      ),
+      theme: ExecutiveTheme.themeData,
+      home: const SplashScreen(),
     );
   }
 }

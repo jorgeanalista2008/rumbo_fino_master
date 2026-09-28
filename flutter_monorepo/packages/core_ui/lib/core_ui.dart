@@ -1,45 +1,41 @@
+library core_ui;
+
+export 'src/theme/executive_colors.dart';
+export 'src/theme/executive_typography.dart';
+export 'src/widgets/luxury_button.dart';
+export 'src/widgets/luxury_card.dart';
+export 'src/widgets/luxury_text_field.dart';
+export 'src/widgets/dual_currency_display.dart';
+
 import 'package:flutter/material.dart';
+import 'src/theme/executive_colors.dart';
+import 'src/theme/executive_typography.dart';
 
 class ExecutiveTheme {
-  static const Color darkBackground = Color(0xFF0F141C);
-  static const Color luxuryGold = Color(0xFFD4AF37);
-  static const Color cardSurface = Color(0xFF1E2530);
-  static const Color textPrimary = Color(0xFFF8FAFC);
-  static const Color textSecondary = Color(0xFF94A3B8);
+  ExecutiveTheme._();
 
   static ThemeData get themeData {
-    return ThemeData.dark().copyWith(
-      scaffoldBackgroundColor: darkBackground,
-      primaryColor: luxuryGold,
+    return ThemeData(
+      brightness: Brightness.dark,
+      scaffoldBackgroundColor: ExecutiveColors.background,
+      primaryColor: ExecutiveColors.gold,
+      cardColor: ExecutiveColors.surface,
       colorScheme: const ColorScheme.dark(
-        primary: luxuryGold,
-        surface: cardSurface,
-        background: darkBackground,
+        primary: ExecutiveColors.gold,
+        secondary: ExecutiveColors.goldLight,
+        surface: ExecutiveColors.surface,
+        background: ExecutiveColors.background,
+        error: ExecutiveColors.error,
       ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: darkBackground,
+      appBarTheme: AppBarTheme(
+        backgroundColor: ExecutiveColors.background,
         elevation: 0,
         centerTitle: true,
-        titleTextStyle: TextStyle(
-          color: luxuryGold,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-          letterSpacing: 1.2,
+        titleTextStyle: ExecutiveTypography.h3.copyWith(
+          color: ExecutiveColors.gold,
+          letterSpacing: 1.0,
         ),
-      ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: luxuryGold,
-          foregroundColor: Colors.black,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          textStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        iconTheme: const IconThemeData(color: ExecutiveColors.gold),
       ),
     );
   }
