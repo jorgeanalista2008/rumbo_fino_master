@@ -24,18 +24,29 @@ class DriverProfileModel {
   });
 
   factory DriverProfileModel.fromJson(Map<String, dynamic> json) {
+    double parsedRating = 5.0;
+    if (json['rating'] != null) {
+      parsedRating = (json['rating'] is num)
+          ? (json['rating'] as num).toDouble()
+          : (double.tryParse(json['rating'].toString()) ?? 5.0);
+    } else if (json['ratingAvg'] != null) {
+      parsedRating = (json['ratingAvg'] is num)
+          ? (json['ratingAvg'] as num).toDouble()
+          : (double.tryParse(json['ratingAvg'].toString()) ?? 5.0);
+    }
+
+    final vehicleJson = json['currentVehicle'] ?? json['assignedVehicle'] ?? json['vehicle'];
+
     return DriverProfileModel(
       id: json['id'] ?? '',
       userId: json['userId'] ?? '',
       licenseNumber: json['licenseNumber'] ?? '',
       licenseCategory: json['licenseCategory'] ?? 'Quinta',
-      rating: (json['rating'] != null) ? (json['rating'] as num).toDouble() : 5.0,
-      totalTrips: json['totalTrips'] ?? 0,
+      rating: parsedRating,
+      totalTrips: json['totalRides'] ?? json['totalTrips'] ?? 0,
       isOnline: json['isOnline'] ?? false,
       currentLocation: json['currentLocation'],
-      vehicle: json['assignedVehicle'] != null
-          ? AssignedVehicleModel.fromJson(json['assignedVehicle'])
-          : (json['vehicle'] != null ? AssignedVehicleModel.fromJson(json['vehicle']) : null),
+      vehicle: vehicleJson != null ? AssignedVehicleModel.fromJson(vehicleJson) : null,
       user: json['user'] != null
           ? DriverUserModel.fromJson(json['user'])
           : DriverUserModel(
@@ -107,12 +118,14 @@ class AssignedVehicleModel {
   factory AssignedVehicleModel.fromJson(Map<String, dynamic> json) {
     return AssignedVehicleModel(
       id: json['id'] ?? '',
-      plateNumber: json['plateNumber'] ?? '',
-      brand: json['brand'] ?? '',
-      model: json['model'] ?? '',
-      color: json['color'] ?? '',
-      tier: json['tier'] ?? 'BLACK',
-      photoUrl: json['photoUrl'],
+      plateNumber: json['licensePlate'] ?? json['plateNumber'] ?? '',
+      brand: json['make'] ?? json['brand'] ?? 'Toyota',
+      model: json['model'] ?? 'Executive',
+      color: json['color'] ?? 'Negro',
+      tier: json['category'] ?? json['tier'] ?? 'BLACK',
+      photoUrl: (json['photos'] is List && (json['photos'] as List).isNotEmpty)
+          ? (json['photos'] as List).first
+          : json['photoUrl'],
     );
   }
 }
