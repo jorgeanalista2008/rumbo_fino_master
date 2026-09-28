@@ -10,6 +10,8 @@
     "dev:web": "npm --prefix web_backoffice run dev",
     "build": "npm --prefix backend run build && npm --prefix web_backoffice run build",
     "seed": "npm --prefix backend run seed",
+    "db:purge-tests": "node database/purge_tests.js",
+    "db:seed-prod": "node database/seed_production.js",
     "install:all": "npm --prefix backend install && npm --prefix web_backoffice install"
   },
   "dependencies": {
