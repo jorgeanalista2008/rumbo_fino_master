@@ -8,23 +8,21 @@ export const getSocket = (): Socket => {
   if (!socket && typeof window !== 'undefined') {
     const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3000/rides';
     socket = io(socketUrl, {
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
       autoConnect: true,
       reconnection: true,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 2000,
+      reconnectionAttempts: 3,
+      reconnectionDelay: 5000,
+      timeout: 5000,
     });
 
     socket.on('connect', () => {
-      console.log('🟢 Conectado exitosamente al WebSocket de Telemetría Rumbo Fino:', socket?.id);
+      console.log('🟢 Telemetría WebSocket en vivo conectada.');
     });
 
-    socket.on('disconnect', (reason) => {
-      console.warn('🟡 Desconectado del WebSocket de Telemetría:', reason);
-    });
-
-    socket.on('connect_error', (err) => {
-      console.warn('⚠️ Error de conexión WebSocket (operando con fallback):', err.message);
+    socket.on('connect_error', () => {
+      // In serverless environments like Vercel, sockets operate via polling fallback
+      socket?.disconnect();
     });
   }
 

@@ -185,7 +185,13 @@ export default function DispatchPage() {
       });
     }
 
+    // Auto-sync polling every 8s as fallback for serverless hosting
+    const interval = setInterval(() => {
+      loadAllData();
+    }, 8000);
+
     return () => {
+      clearInterval(interval);
       if (socket) {
         socket.off('connect');
         socket.off('disconnect');
