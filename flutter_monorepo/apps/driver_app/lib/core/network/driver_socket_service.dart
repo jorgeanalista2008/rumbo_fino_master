@@ -10,6 +10,7 @@ class DriverSocketService {
 
   final List<Function(Map<String, dynamic>)> _rideRequestListeners = [];
   final List<Function(Map<String, dynamic>)> _rideStatusListeners = [];
+  final List<Function(Map<String, dynamic>)> _bcvRateListeners = [];
 
   DriverSocketService._internal();
 
@@ -31,6 +32,15 @@ class DriverSocketService {
 
       _socket!.onConnect((_) {
         log('🟢 [DriverSocket] Chofer Conectado a Rumbo Fino Realtime: ${_socket?.id}');
+      });
+
+      _socket!.on('bcv_rate_updated', (data) {
+        log('🇻🇪 [DriverSocket] Tasa BCV Actualizada en Red: $data');
+        if (data is Map<String, dynamic>) {
+          for (final listener in _bcvRateListeners) {
+            listener(data);
+          }
+        }
       });
 
       _socket!.on('ride_requested', (data) {
@@ -105,6 +115,14 @@ class DriverSocketService {
 
   void removeRideStatusListener(Function(Map<String, dynamic>) listener) {
     _rideStatusListeners.remove(listener);
+  }
+
+  void addBcvRateListener(Function(Map<String, dynamic>) listener) {
+    _bcvRateListeners.add(listener);
+  }
+
+  void removeBcvRateListener(Function(Map<String, dynamic>) listener) {
+    _bcvRateListeners.remove(listener);
   }
 
   void disconnect() {

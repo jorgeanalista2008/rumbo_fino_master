@@ -19,7 +19,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
       useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET', 'RumboFinoSuperSecretKey2026!'),
         signOptions: {
-          expiresIn: configService.get<string>('JWT_EXPIRES_IN', '86400s'),
+          expiresIn: configService.get<string>('JWT_EXPIRES_IN', '30d'),
         },
       }),
     }),

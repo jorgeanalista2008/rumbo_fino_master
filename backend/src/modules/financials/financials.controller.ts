@@ -11,13 +11,13 @@ import { ApiResponseDto } from '../../common/dto/api-response.dto';
 import { UserEntity } from '../../core/database/entities/user.entity';
 
 @ApiTags('Financials')
-@ApiBearerAuth('JWT-auth')
 @Controller('financials')
-@UseGuards(JwtAuthGuard, RolesGuard)
 export class FinancialsController {
   constructor(private readonly financialsService: FinancialsService) {}
 
   @Get('summary')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiBearerAuth('JWT-auth')
   @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.FLEET_ADMIN, UserRoleEnum.AUDITOR)
   @ApiOperation({ summary: 'Obtener reporte de recaudación financiera global y comisiones (Super Admin / Fleet Admin / Auditor)' })
   async getAdminSummary() {
@@ -26,6 +26,8 @@ export class FinancialsController {
   }
 
   @Get('balances')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiBearerAuth('JWT-auth')
   @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.FLEET_ADMIN, UserRoleEnum.DISPATCHER, UserRoleEnum.AUDITOR)
   @ApiOperation({ summary: 'Consultar saldos y billeteras de todos los choferes' })
   async getAllBalances() {
@@ -34,6 +36,8 @@ export class FinancialsController {
   }
 
   @Get('transactions')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Consultar historial de transacciones (tarifas, comisiones y pagos)' })
   async getTransactions(
     @CurrentUser() user: UserEntity,
@@ -70,6 +74,8 @@ export class FinancialsController {
   }
 
   @Post('exchange-rates')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiBearerAuth('JWT-auth')
   @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.DISPATCHER)
   @ApiOperation({ summary: 'Actualizar o registrar una nueva tasa oficial BCV y transmitir a la red' })
   async updateExchangeRate(
@@ -85,6 +91,8 @@ export class FinancialsController {
   }
 
   @Post('exchange-rates/sync-bcv')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiBearerAuth('JWT-auth')
   @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.DISPATCHER)
   @ApiOperation({ summary: 'Sincronizar tasa en vivo con el Banco Central de Venezuela (BCV)' })
   async syncOfficialBcv() {

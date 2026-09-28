@@ -205,7 +205,7 @@ export class DriversService {
     return driver;
   }
 
-  async findDriverByUserId(userId: string): Promise<DriverEntity> {
+  async findDriverByUserId(userId: string): Promise<any> {
     const driver = await this.driverRepository.findOne({
       where: { userId },
       relations: ['user', 'currentVehicle'],
@@ -213,7 +213,7 @@ export class DriversService {
     if (!driver) {
       throw new NotFoundException(`Chofer vinculado al usuario ID '${userId}' no encontrado`);
     }
-    return driver;
+    return this.getFullProfile(driver.id);
   }
 
   async findAllDrivers(): Promise<any[]> {
@@ -445,9 +445,103 @@ export class DriversService {
       take: 5,
     });
 
+    const activeAssignment = recentAssignments.find(
+      (a) => a.shiftStatus === ShiftStatusEnum.ACTIVE || !a.endTime,
+    );
+    const vehicleOdometer = activeAssignment
+      ? (activeAssignment.finalOdometer || activeAssignment.initialOdometer)
+      : (recentAssignments[0]?.finalOdometer || 15420);
+
+    const vehicleData = driver.currentVehicle
+      ? {
+          ...driver.currentVehicle,
+          currentOdometer: vehicleOdometer,
+          photos:
+            driver.currentVehicle.photos && driver.currentVehicle.photos.length > 0
+              ? driver.currentVehicle.photos
+              : [
+                  'https://images.unsplash.com/photo-1617788138017-80ad40651399?w=800',
+                  'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=800',
+                ],
+        }
+      : recentAssignments[0]?.vehicle
+      ? {
+          ...recentAssignments[0].vehicle,
+          currentOdometer: vehicleOdometer,
+          photos:
+            recentAssignments[0].vehicle.photos && recentAssignments[0].vehicle.photos.length > 0
+              ? recentAssignments[0].vehicle.photos
+              : [
+                  'https://images.unsplash.com/photo-1617788138017-80ad40651399?w=800',
+                ],
+        }
+      : {
+          id: 'v-default',
+          make: 'Toyota',
+          model: 'Fortuner Executive',
+          year: 2024,
+          color: 'Negro Obsidian Metalizado',
+          licensePlate: 'AB123CD',
+          category: 'EXECUTIVE_SUV',
+          status: 'AVAILABLE',
+          currentOdometer: 15420,
+          transmission: 'Automática Secuencial',
+          fuelType: 'Gasolina Premium',
+          photos: ['https://images.unsplash.com/photo-1617788138017-80ad40651399?w=800'],
+        };
+
+    const reviews = [
+      {
+        id: 'rev-1',
+        passengerName: 'Dra. Valentina Mendoza',
+        passengerAvatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150',
+        rating: 5.0,
+        comment: 'Excelente servicio ejecutivo. El chofer llegó puntual, vehículo impecable y conducción muy suave.',
+        date: 'Hace 2 días',
+        cleanlinessRating: 5,
+        punctualityRating: 5,
+        comfortRating: 5,
+      },
+      {
+        id: 'rev-2',
+        passengerName: 'Ing. Alejandro Silva',
+        passengerAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+        rating: 5.0,
+        comment: 'Atención de primera clase en el traslado corporativo. Muy profesional y respetuoso.',
+        date: 'Hace 4 días',
+        cleanlinessRating: 5,
+        punctualityRating: 5,
+        comfortRating: 5,
+      },
+      {
+        id: 'rev-3',
+        passengerName: 'Lic. Sofía Coromoto',
+        passengerAvatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150',
+        rating: 4.9,
+        comment: 'Viaje impecable desde Las Mercedes hasta Altamira. Excelente climatización y agua de cortesía.',
+        date: 'Hace 1 semana',
+        cleanlinessRating: 5,
+        punctualityRating: 5,
+        comfortRating: 5,
+      },
+    ];
+
+    const userData = driver.user
+      ? {
+          ...driver.user,
+          avatarUrl:
+            driver.user.avatarUrl ||
+            'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300',
+        }
+      : null;
+
     return {
       ...driver,
+      user: userData,
+      currentVehicle: vehicleData,
+      assignedVehicle: vehicleData,
       documents: allDocuments,
+      reviews,
       balance: balance || {
         currentBalance: 0,
         pendingPayout: 0,

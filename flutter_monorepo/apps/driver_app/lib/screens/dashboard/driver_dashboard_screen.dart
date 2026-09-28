@@ -22,6 +22,15 @@ class DriverDashboardScreen extends StatefulWidget {
 class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
   final MapController _mapController = MapController();
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<DriverAuthProvider>().refreshProfile();
+      context.read<DriverShiftProvider>().fetchBcvRate();
+    });
+  }
+
   void _recenterMap(LatLng target) {
     _mapController.move(target, 15.0);
   }
@@ -198,7 +207,12 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                       ),
                       child: Row(
                         children: [
-                          RfAvatar(name: driverName, radius: 15),
+                          RfAvatar(
+                            name: driverName,
+                            imageUrl: driverProfile?.user.avatarUrl,
+                            radius: 15,
+                            hasGoldBorder: true,
+                          ),
                           const SizedBox(width: 8),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -216,7 +230,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                                   const Icon(Icons.star, color: ExecutiveColors.gold, size: 11),
                                   const SizedBox(width: 2),
                                   Text(
-                                    '${driverProfile?.rating ?? 5.0}',
+                                    '${driverProfile?.rating ?? 4.98}',
                                     style: ExecutiveTypography.caption.copyWith(
                                       color: ExecutiveColors.goldLight,
                                     ),
@@ -233,25 +247,39 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                   // BCV Rate Pill & Shift Badge
                   Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: ExecutiveColors.surface.withOpacity(0.92),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: ExecutiveColors.border),
-                        ),
-                        child: Row(
-                          children: [
-                            const Text('🇻🇪', style: TextStyle(fontSize: 12)),
-                            const SizedBox(width: 4),
-                            Text(
-                              'BCV: Bs. ${shift.bcvRate.toStringAsFixed(2)}',
-                              style: ExecutiveTypography.caption.copyWith(
-                                color: ExecutiveColors.gold,
-                                fontWeight: FontWeight.bold,
+                      GestureDetector(
+                        onTap: () async {
+                          await shift.fetchBcvRate();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Tasa BCV sincronizada en vivo: Bs. ${shift.bcvRate.toStringAsFixed(2)}'),
+                                duration: const Duration(seconds: 2),
+                                backgroundColor: ExecutiveColors.surfaceElevated,
                               ),
-                            ),
-                          ],
+                            );
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: ExecutiveColors.surface.withOpacity(0.92),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: ExecutiveColors.gold.withOpacity(0.4)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Text('🇻🇪', style: TextStyle(fontSize: 12)),
+                              const SizedBox(width: 4),
+                              Text(
+                                'BCV: Bs. ${shift.bcvRate.toStringAsFixed(2)}',
+                                style: ExecutiveTypography.caption.copyWith(
+                                  color: ExecutiveColors.gold,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],

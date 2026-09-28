@@ -92,6 +92,15 @@ class DriverShiftProvider extends ChangeNotifier {
         }
       }
     });
+
+    _socket.addBcvRateListener((data) {
+      debugPrint('[DriverShiftProvider] Evento de Tasa BCV recibido vía WebSocket: $data');
+      if (data['rate'] != null) {
+        _bcvRate = (data['rate'] as num).toDouble();
+        _bcvDate = data['officialDate'] ?? data['effectiveDate'];
+        notifyListeners();
+      }
+    });
   }
 
   Future<void> fetchBcvRate() async {
