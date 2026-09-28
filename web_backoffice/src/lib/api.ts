@@ -26,14 +26,13 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Response Interceptor: Safe 401 handling to prevent abrupt session loss during dashboard polling
+// Response Interceptor: Safe 401 handling to auto-clear expired tokens
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (typeof window !== 'undefined' && error.response?.status === 401) {
-      console.warn('⚠️ Token caducado o no válido (401 Unauthorized) en petición secundaria.');
-      const user = localStorage.getItem('rumbo_fino_user');
-      if (!user && !window.location.pathname.startsWith('/login')) {
+      console.warn('⚠️ Token caducado o no válido (401 Unauthorized). Redirigiendo a login...');
+      if (!window.location.pathname.startsWith('/login')) {
         localStorage.removeItem('rumbo_fino_token');
         localStorage.removeItem('rumbo_fino_user');
         window.location.href = '/login';
