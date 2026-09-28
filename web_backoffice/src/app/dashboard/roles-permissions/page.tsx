@@ -361,29 +361,31 @@ export default function RolesPermissionsPage() {
       <ToastContainer toasts={toasts} onDismiss={removeToast} />
 
       {/* HEADER COMMAND BAR */}
-      <div className="bg-executive-card border border-executive-border p-6 rounded-3xl shadow-xl relative overflow-hidden">
+      <div className="bg-executive-card border border-executive-border p-4 sm:p-6 rounded-3xl shadow-xl relative overflow-hidden">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative z-10">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-luxury-gold/10 border border-luxury-gold/30 flex items-center justify-center text-luxury-gold shadow-lg shadow-luxury-gold/10">
-              <ShieldAlert className="w-6 h-6" />
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-luxury-gold/10 border border-luxury-gold/30 flex items-center justify-center text-luxury-gold shadow-lg shadow-luxury-gold/10 shrink-0">
+              <ShieldAlert className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
             <div>
-              <h1 className="text-2xl font-black text-white flex items-center gap-2.5">
-                Constructor Dinámico de Roles, Menús y Permisos (RBAC)
-                <span className="px-3 py-0.5 rounded-full text-[10px] font-black bg-luxury-gold/15 text-luxury-gold border border-luxury-gold/30">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-lg sm:text-2xl font-black text-white">
+                  Constructor Dinámico de Roles (RBAC)
+                </h1>
+                <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black bg-luxury-gold/15 text-luxury-gold border border-luxury-gold/30">
                   SINCRONIZACIÓN EN VIVO
                 </span>
-              </h1>
-              <p className="text-xs text-gray-400 mt-0.5">
-                Cree nuevos roles o edite perfiles existentes. El menú de navegación de cada usuario se construye dinámicamente según las rutas asignadas.
+              </div>
+              <p className="text-xs text-gray-400 mt-1">
+                Cree nuevos roles o edite perfiles. El menú de navegación se construye dinámicamente según las rutas asignadas.
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 sm:gap-3">
             <button
               onClick={() => setIsNewRoleModalOpen(true)}
-              className="px-4 py-2.5 bg-luxury-gold/15 hover:bg-luxury-gold/25 border border-luxury-gold/30 text-luxury-gold font-bold text-xs rounded-xl flex items-center gap-2 transition-all shadow-md"
+              className="px-4 py-2.5 bg-luxury-gold/15 hover:bg-luxury-gold/25 border border-luxury-gold/30 text-luxury-gold font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all shadow-md"
             >
               <Plus className="w-4 h-4 text-luxury-gold" />
               + Crear Nuevo Rol
@@ -392,26 +394,26 @@ export default function RolesPermissionsPage() {
             <button
               onClick={handleResetDefaults}
               disabled={saving}
-              className="px-4 py-2.5 bg-executive-dark hover:bg-executive-border border border-executive-border text-gray-300 font-bold text-xs rounded-xl flex items-center gap-2 transition-all disabled:opacity-50"
+              className="px-4 py-2.5 bg-executive-dark hover:bg-executive-border border border-executive-border text-gray-300 font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all disabled:opacity-50"
             >
               <RotateCcw className="w-4 h-4 text-gray-400" />
-              Restaurar Valores de Fábrica
+              Restaurar Valores
             </button>
 
             <button
               onClick={handleSave}
               disabled={saving || !currentConfig}
-              className="px-6 py-2.5 bg-luxury-gold hover:bg-yellow-500 text-black font-black text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-luxury-gold/20 flex items-center gap-2 transition-all transform hover:scale-[1.02] disabled:opacity-50"
+              className="px-6 py-2.5 bg-luxury-gold hover:bg-yellow-500 text-black font-black text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-luxury-gold/20 flex items-center justify-center gap-2 transition-all transform hover:scale-[1.02] disabled:opacity-50"
             >
               <Save className="w-4 h-4" />
-              {saving ? 'Guardando en Vivo...' : 'Guardar Configuración'}
+              {saving ? 'Guardando...' : 'Guardar Configuración'}
             </button>
           </div>
         </div>
       </div>
 
-      {/* ROLES TABS SELECTOR */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-thin">
+      {/* ROLES TABS SELECTOR (Clean No-Scrollbar Touch Carousel) */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar scroll-smooth">
         {rolesConfigs.map((r) => {
           const isSelected = r.role === selectedRole;
           const RoleIcon = DEFAULT_ROLE_ICONS[r.role] || Shield;
@@ -419,7 +421,7 @@ export default function RolesPermissionsPage() {
             <button
               key={r.role}
               onClick={() => handleSelectRole(r.role)}
-              className={`flex items-center gap-2.5 px-4 py-3 rounded-2xl font-bold text-xs whitespace-nowrap transition-all border shrink-0 ${
+              className={`flex items-center gap-2 px-3.5 py-2.5 rounded-2xl font-bold text-xs whitespace-nowrap transition-all border shrink-0 ${
                 isSelected
                   ? 'bg-luxury-gold text-black border-luxury-gold shadow-lg shadow-luxury-gold/20'
                   : 'bg-executive-card text-gray-400 hover:text-white border-executive-border hover:bg-executive-border/50'
@@ -428,7 +430,7 @@ export default function RolesPermissionsPage() {
               <RoleIcon className={`w-4 h-4 ${isSelected ? 'text-black' : 'text-luxury-gold'}`} />
               <span>{r.displayName}</span>
               <span
-                className={`text-[10px] font-mono px-2 py-0.5 rounded-md ${
+                className={`text-[9px] font-mono px-1.5 py-0.5 rounded-md ${
                   isSelected ? 'bg-black/20 text-black font-bold' : 'bg-executive-dark text-gray-400 border border-executive-border'
                 }`}
               >
