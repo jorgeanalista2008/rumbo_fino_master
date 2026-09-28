@@ -10,6 +10,57 @@ interface DriverGpsModalProps {
   onClose: () => void;
 }
 
+function getVenezuelanRegion(lat: number, lng: number): string {
+  if (!lat || !lng) return 'Venezuela (GPS)';
+
+  // Yaracuy (San Felipe / Chivacoa / Nirgua / Yaritagua)
+  if (lat >= 9.8 && lat <= 10.8 && lng >= -69.2 && lng <= -68.4) {
+    return 'Yaracuy, Venezuela';
+  }
+  // Carabobo (Valencia / Puerto Cabello / Guacara)
+  if (lat >= 9.8 && lat <= 10.6 && lng > -68.4 && lng <= -67.7) {
+    return 'Carabobo (Valencia), Venezuela';
+  }
+  // Aragua (Maracay / Cagua / La Victoria)
+  if (lat >= 9.8 && lat <= 10.6 && lng > -67.7 && lng <= -67.2) {
+    return 'Aragua (Maracay), Venezuela';
+  }
+  // Caracas (Distrito Capital / Chacao / Baruta / Sucre)
+  if (lat >= 10.4 && lat <= 10.6 && lng > -67.1 && lng <= -66.8) {
+    return 'Caracas (Distrito Capital), Venezuela';
+  }
+  // Miranda (Guarenas / Guatire / Los Teques / Valles del Tuy)
+  if (lat >= 10.1 && lat <= 10.6 && lng > -67.2 && lng <= -65.7) {
+    return 'Miranda, Venezuela';
+  }
+  // La Guaira / Vargas
+  if (lat >= 10.5 && lat <= 10.7 && lng >= -67.3 && lng <= -66.5) {
+    return 'La Guaira, Venezuela';
+  }
+  // Lara (Barquisimeto / Cabudare)
+  if (lat >= 9.5 && lat <= 10.8 && lng >= -70.8 && lng < -69.2) {
+    return 'Lara (Barquisimeto), Venezuela';
+  }
+  // Falcon (Coro / Punto Fijo)
+  if (lat >= 10.8 && lat <= 12.3 && lng >= -71.5 && lng <= -68.2) {
+    return 'Falcón, Venezuela';
+  }
+  // Zulia (Maracaibo / Cabimas)
+  if (lat >= 8.5 && lat <= 11.9 && lng >= -73.4 && lng < -70.8) {
+    return 'Zulia (Maracaibo), Venezuela';
+  }
+  // Nueva Esparta (Margarita)
+  if (lat >= 10.8 && lat <= 11.2 && lng >= -64.5 && lng <= -63.7) {
+    return 'Nueva Esparta (Margarita), Venezuela';
+  }
+  // Anzoategui (Lecheria / Puerto La Cruz / Barcelona)
+  if (lat >= 7.6 && lat <= 10.3 && lng >= -65.5 && lng <= -63.7) {
+    return 'Anzoátegui, Venezuela';
+  }
+
+  return 'Venezuela (Nacional)';
+}
+
 export function DriverGpsModal({ driver, onClose }: DriverGpsModalProps) {
   if (!driver) return null;
 
@@ -151,7 +202,7 @@ export function DriverGpsModal({ driver, onClose }: DriverGpsModalProps) {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400">Zona:</span>
-                  <span className="text-luxury-gold font-bold">Caracas, Venezuela</span>
+                  <span className="text-luxury-gold font-bold">{getVenezuelanRegion(lat, lng)}</span>
                 </div>
               </div>
             </div>
