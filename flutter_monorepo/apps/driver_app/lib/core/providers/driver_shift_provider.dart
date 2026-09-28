@@ -177,6 +177,14 @@ class DriverShiftProvider extends ChangeNotifier {
     _driverId = id;
   }
 
+  void syncStateFromProfile(DriverProfileModel profile) {
+    _driverId = profile.id;
+    _isOnline = profile.isOnline;
+    _isShiftActive = profile.vehicle != null;
+    _activeVehicle = profile.vehicle;
+    notifyListeners();
+  }
+
   Future<void> loadAvailableVehicles() async {
     try {
       final res = await _api.dio.get('/vehicles/available');
@@ -196,18 +204,29 @@ class DriverShiftProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final res = await _api.dio.patch('/drivers/online', data: {
+      await _api.dio.patch('/drivers/online', data: {
         'isOnline': online,
         'latitude': _currentLocation.latitude,
         'longitude': _currentLocation.longitude,
       });
 
       _isOnline = online;
+
+      if (online && _driverId != null) {
+        _socket.emitLocationUpdate(
+          driverId: _driverId!,
+          latitude: _currentLocation.latitude,
+          longitude: _currentLocation.longitude,
+          heading: _heading,
+          speed: _speed,
+        );
+      }
+
       _isLoading = false;
       notifyListeners();
       return true;
     } catch (e) {
-      // Fallback local toggle for seamless driver experience
+      debugPrint('[DriverShiftProvider] Error toggling online: $e');
       _isOnline = online;
       _isLoading = false;
       notifyListeners();

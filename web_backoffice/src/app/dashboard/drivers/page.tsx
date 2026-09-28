@@ -35,6 +35,7 @@ import {
   MapPin,
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { getSocket } from '@/lib/socket';
 import { DriverProfileModal } from '@/components/DriverProfileModal';
 import { AssignVehicleModal } from '@/components/AssignVehicleModal';
 import { CreateDriverModal } from '@/components/CreateDriverModal';
@@ -128,6 +129,40 @@ export default function DriversPage() {
 
   useEffect(() => {
     loadDrivers();
+
+    // Auto-polling every 6 seconds to reflect real-time mobile updates
+    const pollTimer = setInterval(() => {
+      api.get('/drivers').then((res) => {
+        if (res.data?.data) {
+          setDrivers(res.data.data);
+        }
+      }).catch(() => {});
+    }, 6000);
+
+    // Live WebSocket presence & GPS updates
+    const socket = getSocket();
+    if (socket) {
+      socket.on('driver:global_location', (data: any) => {
+        if (data.driverId) {
+          setDrivers((prev) =>
+            prev.map((d) =>
+              d.id === data.driverId || d.user?.id === data.driverId
+                ? {
+                    ...d,
+                    isOnline: true,
+                    currentLatitude: data.latitude,
+                    currentLongitude: data.longitude,
+                  }
+                : d,
+            ),
+          );
+        }
+      });
+    }
+
+    return () => {
+      clearInterval(pollTimer);
+    };
   }, []);
 
   const handleConfirmEndShift = async (finalOdometer: number) => {

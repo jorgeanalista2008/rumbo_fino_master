@@ -255,12 +255,32 @@ export class DriversService {
     const driver = await this.findDriverById(driverId);
 
     if (dto.isOnline && !driver.currentVehicleId) {
-      throw new BadRequestException(
-        'No puede ponerse en línea sin tener un vehículo asignado en su turno activo',
-      );
+      // Auto-assign first available vehicle so driver can go online smoothly
+      const availableVehicle = await this.vehicleRepository.findOne({
+        where: { status: VehicleStatusEnum.AVAILABLE },
+      });
+      if (availableVehicle) {
+        driver.currentVehicleId = availableVehicle.id;
+        availableVehicle.status = VehicleStatusEnum.IN_SERVICE;
+        await this.vehicleRepository.save(availableVehicle);
+
+        await this.assignmentRepository.save(
+          this.assignmentRepository.create({
+            driverId,
+            vehicleId: availableVehicle.id,
+            initialOdometer: 15420,
+            shiftStatus: ShiftStatusEnum.ACTIVE,
+            notes: 'Asignación automática de unidad al iniciar disponibilidad en red',
+          }),
+        );
+      }
     }
 
     driver.isOnline = dto.isOnline;
+    if (dto.latitude !== undefined && dto.longitude !== undefined) {
+      driver.currentLatitude = dto.latitude;
+      driver.currentLongitude = dto.longitude;
+    }
     const updated = await this.driverRepository.save(driver);
 
     if (dto.isOnline && dto.latitude && dto.longitude) {

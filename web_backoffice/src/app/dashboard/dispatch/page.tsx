@@ -177,6 +177,18 @@ export default function DispatchPage() {
             ...prev,
             [data.driverId]: { lat: data.latitude, lng: data.longitude },
           }));
+          setDrivers((prev) =>
+            prev.map((d) =>
+              d.id === data.driverId || d.userId === data.driverId || d.user?.id === data.driverId
+                ? {
+                    ...d,
+                    isOnline: true,
+                    currentLatitude: data.latitude,
+                    currentLongitude: data.longitude,
+                  }
+                : d,
+            ),
+          );
         }
       });
 

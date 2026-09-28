@@ -41,6 +41,12 @@ export class DriverEntity {
   @Column({ name: 'is_online', default: false })
   isOnline: boolean;
 
+  @Column({ name: 'current_latitude', type: 'numeric', precision: 10, scale: 7, nullable: true })
+  currentLatitude: number;
+
+  @Column({ name: 'current_longitude', type: 'numeric', precision: 10, scale: 7, nullable: true })
+  currentLongitude: number;
+
   @Column({ name: 'current_vehicle_id', nullable: true })
   currentVehicleId: string;
 

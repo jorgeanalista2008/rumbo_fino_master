@@ -25,9 +25,15 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<DriverAuthProvider>().refreshProfile();
-      context.read<DriverShiftProvider>().fetchBcvRate();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await context.read<DriverAuthProvider>().refreshProfile();
+      if (!mounted) return;
+      final auth = context.read<DriverAuthProvider>();
+      final shift = context.read<DriverShiftProvider>();
+      if (auth.profile != null) {
+        shift.syncStateFromProfile(auth.profile!);
+      }
+      await shift.fetchBcvRate();
     });
   }
 
