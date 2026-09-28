@@ -6,6 +6,7 @@ import { DriverVehicleAssignmentEntity } from '../../core/database/entities/driv
 import { VehicleEntity } from '../../core/database/entities/vehicle.entity';
 import { DriverBalanceEntity } from '../../core/database/entities/driver-balance.entity';
 import { UserEntity } from '../../core/database/entities/user.entity';
+import { ReviewEntity } from '../../core/database/entities/review.entity';
 import { StorageModule } from '../../core/storage/storage.module';
 import { DriversService } from './drivers.service';
 import { DriversController } from './drivers.controller';
@@ -19,6 +20,7 @@ import { DriversController } from './drivers.controller';
       VehicleEntity,
       DriverBalanceEntity,
       UserEntity,
+      ReviewEntity,
     ]),
     StorageModule,
   ],

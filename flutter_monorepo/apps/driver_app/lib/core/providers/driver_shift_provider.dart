@@ -24,7 +24,7 @@ class DriverShiftProvider extends ChangeNotifier {
   Timer? _gpsBroadcastTimer;
 
   // BCV Rate
-  double _bcvRate = 36.50;
+  double _bcvRate = 0.0;
   String? _bcvDate;
 
   // Shift & Vehicles
@@ -41,8 +41,8 @@ class DriverShiftProvider extends ChangeNotifier {
   DriverRideModel? _activeRide;
 
   // Metrics
-  int _completedTripsToday = 4;
-  double _earningsUsdToday = 78.50;
+  int _completedTripsToday = 0;
+  double _earningsUsdToday = 0.0;
 
   // Getters
   bool get isOnline => _isOnline;
@@ -182,6 +182,8 @@ class DriverShiftProvider extends ChangeNotifier {
     _isOnline = profile.isOnline;
     _isShiftActive = profile.vehicle != null;
     _activeVehicle = profile.vehicle;
+    _completedTripsToday = profile.totalTrips;
+    _earningsUsdToday = profile.balance?.totalEarned ?? 0.0;
     notifyListeners();
   }
 

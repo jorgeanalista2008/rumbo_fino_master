@@ -18,6 +18,7 @@ import { EndShiftDto } from './dto/end-shift.dto';
 import { ToggleOnlineDto } from './dto/toggle-online.dto';
 import { ShiftStatusEnum, VehicleStatusEnum, DocumentStatusEnum, DocumentTypeEnum } from '../../common/enums/roles.enum';
 import { UserEntity } from '../../core/database/entities/user.entity';
+import { ReviewEntity } from '../../core/database/entities/review.entity';
 import { UserRoleEnum, UserStatusEnum } from '../../common/enums/roles.enum';
 import * as bcrypt from 'bcrypt';
 import * as fs from 'fs';
@@ -41,6 +42,8 @@ export class DriversService {
     private readonly balanceRepository: Repository<DriverBalanceEntity>,
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
+    @InjectRepository(ReviewEntity)
+    private readonly reviewRepository: Repository<ReviewEntity>,
     private readonly redisService: RedisService,
     private readonly storageService: StorageService,
   ) {}
@@ -405,59 +408,20 @@ export class DriversService {
 
   async getFullProfile(driverId: string): Promise<any> {
     const driver = await this.findDriverById(driverId);
+    
+    // 1. Real documents from database
     const documents = await this.driverDocRepository.find({
       where: { driverId },
       relations: ['verifier'],
       order: { createdAt: 'DESC' },
     });
 
-    const docTypesPresent = new Set(documents.map((d) => d.documentType));
-    const mandatoryTypes = [
-      {
-        type: DocumentTypeEnum.DRIVER_LICENSE,
-        num: driver.licenseNumber || `LIC-${driverId.substring(0, 6)}`,
-        url: 'https://rumbofino.com/docs/licencia.pdf',
-      },
-      {
-        type: DocumentTypeEnum.MEDICAL_CERTIFICATE,
-        num: `MED-${driverId.substring(0, 6)}`,
-        url: 'https://rumbofino.com/docs/certificado_medico.pdf',
-      },
-      {
-        type: DocumentTypeEnum.DRIVING_CERTIFICATE,
-        num: `CERT-${driverId.substring(0, 6)}`,
-        url: 'https://rumbofino.com/docs/certificado_manejo.pdf',
-      },
-      {
-        type: DocumentTypeEnum.CRIMINAL_RECORD,
-        num: `ANT-${driverId.substring(0, 6)}`,
-        url: 'https://rumbofino.com/docs/antecedentes.pdf',
-      },
-      {
-        type: DocumentTypeEnum.IDENTITY_CARD,
-        num: `DNI-${driverId.substring(0, 6)}`,
-        url: 'https://rumbofino.com/docs/dni.pdf',
-      },
-    ];
-
-    const allDocuments = [...documents];
-    for (const item of mandatoryTypes) {
-      if (!docTypesPresent.has(item.type)) {
-        allDocuments.push({
-          id: `doc-${item.type.toLowerCase()}-${driverId.substring(0, 6)}`,
-          driverId,
-          documentType: item.type,
-          documentNumber: item.num,
-          fileUrl: item.url,
-          expirationDate: driver.licenseExpiration || new Date('2028-12-31'),
-          status: DocumentStatusEnum.APPROVED,
-        } as any);
-      }
-    }
-
+    // 2. Real balance from database
     const balance = await this.balanceRepository.findOne({
       where: { driverId },
     });
+
+    // 3. Real vehicle assignments
     const recentAssignments = await this.assignmentRepository.find({
       where: { driverId },
       relations: ['vehicle'],
@@ -470,83 +434,46 @@ export class DriversService {
     );
     const vehicleOdometer = activeAssignment
       ? (activeAssignment.finalOdometer || activeAssignment.initialOdometer)
-      : (recentAssignments[0]?.finalOdometer || 15420);
+      : (recentAssignments[0]?.finalOdometer || 0);
 
     const vehicleData = driver.currentVehicle
       ? {
           ...driver.currentVehicle,
           currentOdometer: vehicleOdometer,
-          photos:
-            driver.currentVehicle.photos && driver.currentVehicle.photos.length > 0
-              ? driver.currentVehicle.photos
-              : [
-                  'https://images.unsplash.com/photo-1617788138017-80ad40651399?w=800',
-                ],
         }
       : recentAssignments[0]?.vehicle
       ? {
           ...recentAssignments[0].vehicle,
           currentOdometer: vehicleOdometer,
-          photos:
-            recentAssignments[0].vehicle.photos && recentAssignments[0].vehicle.photos.length > 0
-              ? recentAssignments[0].vehicle.photos
-              : [
-                  'https://images.unsplash.com/photo-1617788138017-80ad40651399?w=800',
-                ],
         }
       : null;
 
-    const reviews = [
-      {
-        id: 'rev-1',
-        passengerName: 'Dra. Valentina Mendoza',
-        passengerAvatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150',
-        rating: 5.0,
-        comment: 'Excelente servicio ejecutivo. El chofer llegó puntual, vehículo impecable y conducción muy suave.',
-        date: 'Hace 2 días',
-        cleanlinessRating: 5,
-        punctualityRating: 5,
-        comfortRating: 5,
-      },
-      {
-        id: 'rev-2',
-        passengerName: 'Ing. Alejandro Silva',
-        passengerAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-        rating: 5.0,
-        comment: 'Atención de primera clase en el traslado corporativo. Muy profesional y respetuoso.',
-        date: 'Hace 4 días',
-        cleanlinessRating: 5,
-        punctualityRating: 5,
-        comfortRating: 5,
-      },
-      {
-        id: 'rev-3',
-        passengerName: 'Lic. Sofía Coromoto',
-        passengerAvatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150',
-        rating: 4.9,
-        comment: 'Viaje impecable desde Las Mercedes hasta Altamira. Excelente climatización y agua de cortesía.',
-        date: 'Hace 1 semana',
-        cleanlinessRating: 5,
-        punctualityRating: 5,
-        comfortRating: 5,
-      },
-    ];
+    // 4. Real reviews from database
+    const dbReviews = await this.reviewRepository.find({
+      where: { targetId: driver.userId },
+      relations: ['author'],
+      order: { createdAt: 'DESC' },
+      take: 20,
+    });
 
-    const userData = driver.user
-      ? {
-          ...driver.user,
-          avatarUrl:
-            driver.user.avatarUrl ||
-            'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300',
-        }
-      : null;
+    const reviews = dbReviews.map((r) => ({
+      id: r.id,
+      passengerName: r.author ? `${r.author.firstName} ${r.author.lastName}`.trim() : 'Pasajero VIP',
+      passengerAvatar: r.author?.avatarUrl,
+      rating: Number(r.rating || 5),
+      comment: r.comment || 'Excelente servicio ejecutivo.',
+      date: new Date(r.createdAt).toLocaleDateString('es-VE'),
+      cleanlinessRating: r.cleanlinessRating || 5,
+      punctualityRating: r.punctualityRating || 5,
+      comfortRating: r.comfortRating || 5,
+    }));
 
     return {
       ...driver,
-      user: userData,
+      user: driver.user,
       currentVehicle: vehicleData,
       assignedVehicle: vehicleData,
-      documents: allDocuments,
+      documents,
       reviews,
       balance: balance || {
         currentBalance: 0,

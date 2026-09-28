@@ -11,6 +11,7 @@ class DriverProfileModel {
   final AssignedVehicleModel? vehicle;
   final DriverUserModel user;
   final List<DriverReviewModel> reviews;
+  final List<DriverDocumentModel> documents;
   final DriverBalanceModel? balance;
 
   DriverProfileModel({
@@ -26,6 +27,7 @@ class DriverProfileModel {
     this.vehicle,
     required this.user,
     this.reviews = const [],
+    this.documents = const [],
     this.balance,
   });
 
@@ -50,6 +52,13 @@ class DriverProfileModel {
           .toList();
     }
 
+    List<DriverDocumentModel> parsedDocs = [];
+    if (json['documents'] is List) {
+      parsedDocs = (json['documents'] as List)
+          .map((d) => DriverDocumentModel.fromJson(d))
+          .toList();
+    }
+
     return DriverProfileModel(
       id: json['id'] ?? '',
       userId: json['userId'] ?? '',
@@ -62,6 +71,7 @@ class DriverProfileModel {
       currentLocation: json['currentLocation'],
       vehicle: vehicleJson != null ? AssignedVehicleModel.fromJson(vehicleJson) : null,
       reviews: parsedReviews,
+      documents: parsedDocs,
       balance: json['balance'] != null ? DriverBalanceModel.fromJson(json['balance']) : null,
       user: json['user'] != null
           ? DriverUserModel.fromJson(json['user'])
@@ -72,6 +82,35 @@ class DriverProfileModel {
               email: '',
               role: 'DRIVER',
             ),
+    );
+  }
+}
+
+class DriverDocumentModel {
+  final String id;
+  final String documentType;
+  final String documentNumber;
+  final String? fileUrl;
+  final String status;
+  final String? expirationDate;
+
+  DriverDocumentModel({
+    required this.id,
+    required this.documentType,
+    required this.documentNumber,
+    this.fileUrl,
+    required this.status,
+    this.expirationDate,
+  });
+
+  factory DriverDocumentModel.fromJson(Map<String, dynamic> json) {
+    return DriverDocumentModel(
+      id: json['id'] ?? '',
+      documentType: json['documentType'] ?? 'DOCUMENTO',
+      documentNumber: json['documentNumber'] ?? '',
+      fileUrl: json['fileUrl'],
+      status: json['status'] ?? 'PENDING',
+      expirationDate: json['expirationDate']?.toString(),
     );
   }
 }

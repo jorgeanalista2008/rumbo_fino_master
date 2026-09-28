@@ -567,26 +567,19 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
                     // Reviews List
                     if (profile?.reviews != null && profile!.reviews.isNotEmpty)
                       ...profile.reviews.map((rev) => _buildReviewCard(rev))
-                    else ...[
-                      _buildReviewCard(
-                        DriverReviewModel(
-                          id: 'r1',
-                          passengerName: 'Dra. Valentina Mendoza',
-                          rating: 5.0,
-                          comment: 'Excelente servicio ejecutivo. El chofer llegó puntual, vehículo impecable y trato muy respetuoso.',
-                          date: 'Hace 2 días',
+                    else
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        child: Center(
+                          child: Text(
+                            'Sin reseñas registradas aún.\nLas calificaciones de tus traslados ejecutivos aparecerán aquí.',
+                            textAlign: TextAlign.center,
+                            style: ExecutiveTypography.caption.copyWith(
+                              color: ExecutiveColors.textSecondary,
+                            ),
+                          ),
                         ),
                       ),
-                      _buildReviewCard(
-                        DriverReviewModel(
-                          id: 'r2',
-                          passengerName: 'Ing. Alejandro Silva',
-                          rating: 5.0,
-                          comment: 'Atención de primera clase en el traslado corporativo. Manejo suave y seguro.',
-                          date: 'Hace 4 días',
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
@@ -604,32 +597,52 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'EXPEDIENTE DIGITAL & AUDITORÍA',
-                      style: ExecutiveTypography.caption.copyWith(
-                        color: ExecutiveColors.gold,
-                        letterSpacing: 1.2,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'EXPEDIENTE DIGITAL & AUDITORÍA',
+                          style: ExecutiveTypography.caption.copyWith(
+                            color: ExecutiveColors.gold,
+                            letterSpacing: 1.2,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        RfBadge(
+                          text: profile?.documents.isNotEmpty == true ? 'AUDITADO' : 'REGISTRADO',
+                          variant: profile?.documents.isNotEmpty == true ? RfBadgeVariant.success : RfBadgeVariant.warning,
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 14),
                     _buildDocRow(
                       title: 'Licencia de Conducir ($licenseCategory)',
                       subtitle: '$licenseNumber • Vence: $licenseExp',
-                      isApproved: true,
+                      isApproved: licenseNumber.isNotEmpty && !licenseNumber.startsWith('Sin'),
                     ),
-                    const Divider(color: ExecutiveColors.border, height: 16),
-                    _buildDocRow(
-                      title: 'Certificado Médico Vial',
-                      subtitle: 'Homologado y Vigente',
-                      isApproved: true,
-                    ),
-                    const Divider(color: ExecutiveColors.border, height: 16),
-                    _buildDocRow(
-                      title: 'Certificado de Antecedentes',
-                      subtitle: 'Auditado por Seguridad Rumbo Fino',
-                      isApproved: true,
-                    ),
+                    if (profile?.documents != null && profile!.documents.isNotEmpty) ...[
+                      for (final doc in profile.documents) ...[
+                        const Divider(color: ExecutiveColors.border, height: 16),
+                        _buildDocRow(
+                          title: doc.documentType.replaceAll('_', ' '),
+                          subtitle: '${doc.documentNumber} • Estado: ${doc.status}',
+                          isApproved: doc.status == 'APPROVED',
+                        ),
+                      ],
+                    ] else ...[
+                      const Divider(color: ExecutiveColors.border, height: 16),
+                      _buildDocRow(
+                        title: 'Certificado Médico Vial',
+                        subtitle: 'Pendiente por cargar expediente',
+                        isApproved: false,
+                      ),
+                      const Divider(color: ExecutiveColors.border, height: 16),
+                      _buildDocRow(
+                        title: 'Certificado de Antecedentes',
+                        subtitle: 'Pendiente por cargar expediente',
+                        isApproved: false,
+                      ),
+                    ],
                   ],
                 ),
               ),
