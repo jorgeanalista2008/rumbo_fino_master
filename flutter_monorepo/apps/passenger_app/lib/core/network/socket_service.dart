@@ -1,4 +1,4 @@
-import 'dart:developer';
+import 'package:flutter/foundation.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
 class SocketService {
@@ -10,6 +10,8 @@ class SocketService {
 
   final List<Function(Map<String, dynamic>)> _locationListeners = [];
   final List<Function(Map<String, dynamic>)> _rideStatusListeners = [];
+  final List<Function(Map<String, dynamic>)> _bcvRateListeners = [];
+  final List<Function(Map<String, dynamic>)> _telemetryListeners = [];
 
   SocketService._internal();
 
@@ -23,16 +25,24 @@ class SocketService {
             .setTransports(['websocket', 'polling'])
             .enableAutoConnect()
             .enableReconnection()
-            .setReconnectionAttempts(15)
+            .setReconnectionAttempts(20)
             .setReconnectionDelay(2000)
             .setAuth({'token': token})
             .build(),
       );
 
       _socket!.onConnect((_) {
-        log('🟢 [SocketService] Conectado a Rumbo Fino Realtime: ${_socket?.id}');
+        debugPrint('🟢 [SocketService] Conectado a Rumbo Fino Realtime: ${_socket?.id}');
       });
 
+      // Global driver locations (for nearby drivers)
+      _socket!.on('driver:global_location', (data) {
+        if (data is Map<String, dynamic>) {
+          for (final listener in _locationListeners) {
+            listener(data);
+          }
+        }
+      });
       _socket!.on('driver_location', (data) {
         if (data is Map<String, dynamic>) {
           for (final listener in _locationListeners) {
@@ -41,7 +51,24 @@ class SocketService {
         }
       });
 
-      _socket!.on('ride_status_changed', (data) {
+      // Active ride telemetry stream (live tracking assigned driver)
+      _socket!.on('ride:telemetry_stream', (data) {
+        if (data is Map<String, dynamic>) {
+          for (final listener in _telemetryListeners) {
+            listener(data);
+          }
+        }
+      });
+
+      // Ride status changes
+      _socket!.on('ride:status_changed', (data) {
+        if (data is Map<String, dynamic>) {
+          for (final listener in _rideStatusListeners) {
+            listener(data);
+          }
+        }
+      });
+      _socket!.on('ride:global_status', (data) {
         if (data is Map<String, dynamic>) {
           for (final listener in _rideStatusListeners) {
             listener(data);
@@ -49,15 +76,31 @@ class SocketService {
         }
       });
 
+      // BCV Rate updates
+      _socket!.on('financials:bcv_rate_updated', (data) {
+        if (data is Map<String, dynamic>) {
+          for (final listener in _bcvRateListeners) {
+            listener(data);
+          }
+        }
+      });
+
       _socket!.onDisconnect((reason) {
-        log('🟡 [SocketService] Desconectado: $reason');
+        debugPrint('🟡 [SocketService] Desconectado: $reason');
       });
 
       _socket!.onConnectError((err) {
-        log('⚠️ [SocketService] Error conexión Socket: $err');
+        debugPrint('⚠️ [SocketService] Error conexión Socket: $err');
       });
     } catch (e) {
-      log('❌ [SocketService] Excepción al inicializar: $e');
+      debugPrint('❌ [SocketService] Excepción al inicializar: $e');
+    }
+  }
+
+  void joinRideRoom(String rideId) {
+    if (_socket != null && _socket!.connected) {
+      _socket!.emit('ride:join_room', {'rideId': rideId});
+      debugPrint('🚕 [SocketService] Unido a sala del viaje: ride:$rideId');
     }
   }
 
@@ -69,12 +112,28 @@ class SocketService {
     _locationListeners.remove(listener);
   }
 
+  void addTelemetryListener(Function(Map<String, dynamic>) listener) {
+    _telemetryListeners.add(listener);
+  }
+
+  void removeTelemetryListener(Function(Map<String, dynamic>) listener) {
+    _telemetryListeners.remove(listener);
+  }
+
   void addRideStatusListener(Function(Map<String, dynamic>) listener) {
     _rideStatusListeners.add(listener);
   }
 
   void removeRideStatusListener(Function(Map<String, dynamic>) listener) {
     _rideStatusListeners.remove(listener);
+  }
+
+  void addBcvRateListener(Function(Map<String, dynamic>) listener) {
+    _bcvRateListeners.add(listener);
+  }
+
+  void removeBcvRateListener(Function(Map<String, dynamic>) listener) {
+    _bcvRateListeners.remove(listener);
   }
 
   void disconnect() {

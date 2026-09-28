@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:geolocator/geolocator.dart';
@@ -18,22 +19,40 @@ enum RideFlowState {
   completed,
 }
 
-class VehicleTier {
+class VehicleCategoryQuote {
   final String id;
   final String name;
   final String subtitle;
-  final double baseFareUsd;
-  final String icon;
   final String badge;
+  final String capacity;
+  final double baseFareUsd;
+  final double perKmUsd;
+  final double minimumFareUsd;
+  final String icon;
 
-  const VehicleTier({
+  // Dynamically calculated per route
+  double fareUsd;
+  double fareVes;
+
+  VehicleCategoryQuote({
     required this.id,
     required this.name,
     required this.subtitle,
-    required this.baseFareUsd,
-    required this.icon,
     required this.badge,
+    required this.capacity,
+    required this.baseFareUsd,
+    required this.perKmUsd,
+    required this.minimumFareUsd,
+    required this.icon,
+    this.fareUsd = 0.0,
+    this.fareVes = 0.0,
   });
+
+  void calculateFare(double distanceKm, double bcvRate) {
+    final rawUsd = baseFareUsd + (distanceKm * perKmUsd);
+    fareUsd = double.parse((rawUsd < minimumFareUsd ? minimumFareUsd : rawUsd).toStringAsFixed(2));
+    fareVes = double.parse((fareUsd * bcvRate).toStringAsFixed(2));
+  }
 }
 
 class RideProvider extends ChangeNotifier {
@@ -44,68 +63,113 @@ class RideProvider extends ChangeNotifier {
   LatLng _passengerLocation = const LatLng(10.4900, -66.8600); // Caracas default
   bool _isLoadingLocation = false;
 
-  double _bcvRate = 64.85;
+  double _bcvRate = 875.0;
+  String? _bcvDate;
   List<DriverLocationModel> _nearbyDrivers = [];
-  
-  // Destination
-  final String _originAddress = 'Ubicación actual';
+
+  // Routing and destination
+  String _originAddress = 'Ubicación actual';
   String _destinationAddress = '';
   LatLng? _destinationLocation;
-  
-  // Vehicle Tiers
-  static const List<VehicleTier> availableTiers = [
-    VehicleTier(
-      id: 'SEDAN_EJECUTIVO',
+  double _routeDistanceKm = 0.0;
+  int _routeEstimatedMinutes = 10;
+  List<LatLng> _routePoints = [];
+
+  // Vehicle Categories
+  static List<VehicleCategoryQuote> get defaultCategories => [
+    VehicleCategoryQuote(
+      id: 'EXECUTIVE_SEDAN',
       name: 'Sedán Ejecutivo',
-      subtitle: 'Mercedes-Benz Clase E, Audi A6',
-      baseFareUsd: 25.0,
-      icon: 'sedan',
+      subtitle: 'Toyota Corolla / Camry / Mercedes Clase C',
       badge: 'PREMIUM',
+      capacity: '4 Pasajeros',
+      baseFareUsd: 8.0,
+      perKmUsd: 1.20,
+      minimumFareUsd: 10.0,
+      icon: 'sedan',
     ),
-    VehicleTier(
-      id: 'SUV_BLINDADA',
-      name: 'SUV Blindada',
-      subtitle: 'Cadillac Escalade, Blindaje Nivel IV',
-      baseFareUsd: 55.0,
+    VehicleCategoryQuote(
+      id: 'VIP_SUV',
+      name: 'SUV Ejecutiva',
+      subtitle: 'Toyota Fortuner / 4Runner / Tahoe',
+      badge: 'VIP CONFORT',
+      capacity: '5-6 Pasajeros',
+      baseFareUsd: 15.0,
+      perKmUsd: 1.80,
+      minimumFareUsd: 18.0,
       icon: 'suv',
-      badge: 'MÁXIMA SEGURIDAD',
     ),
-    VehicleTier(
-      id: 'VIP_GOLD',
-      name: 'VIP Chauffeur Gold',
-      subtitle: 'BMW Serie 7, Chofer de Protocolo',
-      baseFareUsd: 85.0,
-      icon: 'vip',
-      badge: 'ULTRA LUXURY',
+    VehicleCategoryQuote(
+      id: 'PREMIUM_VAN',
+      name: 'Van Ejecutiva',
+      subtitle: 'Toyota HiAce VIP / Mercedes Sprinter',
+      badge: 'GRUPO EJECUTIVO',
+      capacity: '8-12 Pasajeros',
+      baseFareUsd: 25.0,
+      perKmUsd: 2.50,
+      minimumFareUsd: 30.0,
+      icon: 'van',
+    ),
+    VehicleCategoryQuote(
+      id: 'LUXURY_ARMORED',
+      name: 'Blindado VIP',
+      subtitle: 'Blindaje Nivel IV/V con Chofer Escolta',
+      badge: 'MÁXIMA SEGURIDAD',
+      capacity: '4 Pasajeros',
+      baseFareUsd: 50.0,
+      perKmUsd: 4.00,
+      minimumFareUsd: 60.0,
+      icon: 'shield',
     ),
   ];
 
-  VehicleTier _selectedTier = availableTiers[0];
+  List<VehicleCategoryQuote> _categories = [];
+  VehicleCategoryQuote? _selectedCategory;
+  String _selectedPaymentMethod = 'PAGO_MOVIL';
+
   RideModel? _activeRide;
   bool _isCreatingRide = false;
+  bool _isCancelling = false;
   String? _rideErrorMessage;
+  Timer? _ridePollTimer;
 
+  // Getters
   RideFlowState get flowState => _flowState;
   LatLng get passengerLocation => _passengerLocation;
   bool get isLoadingLocation => _isLoadingLocation;
   double get bcvRate => _bcvRate;
+  String? get bcvDate => _bcvDate;
   List<DriverLocationModel> get nearbyDrivers => _nearbyDrivers;
   String get originAddress => _originAddress;
   String get destinationAddress => _destinationAddress;
   LatLng? get destinationLocation => _destinationLocation;
-  VehicleTier get selectedTier => _selectedTier;
+  double get routeDistanceKm => _routeDistanceKm;
+  int get routeEstimatedMinutes => _routeEstimatedMinutes;
+  List<LatLng> get routePoints => _routePoints;
+  List<VehicleCategoryQuote> get categories => _categories;
+  VehicleCategoryQuote? get selectedCategory => _selectedCategory;
+  String get selectedPaymentMethod => _selectedPaymentMethod;
   RideModel? get activeRide => _activeRide;
   bool get isCreatingRide => _isCreatingRide;
+  bool get isCancelling => _isCancelling;
   String? get rideErrorMessage => _rideErrorMessage;
 
   RideProvider() {
+    _categories = defaultCategories;
+    _selectedCategory = _categories[0];
+
+    // Setup Socket Listeners
     _socket.addLocationListener(_handleRealtimeDriverLocation);
+    _socket.addTelemetryListener(_handleActiveRideTelemetry);
     _socket.addRideStatusListener(_handleRealtimeRideStatus);
+    _socket.addBcvRateListener(_handleRealtimeBcvRate);
   }
 
   void _handleRealtimeDriverLocation(Map<String, dynamic> data) {
     try {
       final updatedDriver = DriverLocationModel.fromJson(data);
+      if (updatedDriver.latitude == 0.0 || updatedDriver.longitude == 0.0) return;
+
       final index = _nearbyDrivers.indexWhere((d) => d.driverId == updatedDriver.driverId);
       if (index >= 0) {
         _nearbyDrivers[index] = updatedDriver;
@@ -116,39 +180,108 @@ class RideProvider extends ChangeNotifier {
     } catch (_) {}
   }
 
-  void _handleRealtimeRideStatus(Map<String, dynamic> data) {
+  void _handleActiveRideTelemetry(Map<String, dynamic> data) {
     try {
-      if (_activeRide != null && data['rideId'] == _activeRide!.id) {
-        final newStatus = (data['status'] ?? '').toString().toUpperCase();
-        if (newStatus == 'EN_CAMINO') {
-          _flowState = RideFlowState.driverAssigned;
-        } else if (newStatus == 'LLEGO') {
-          _flowState = RideFlowState.driverArrived;
-        } else if (newStatus == 'EN_CURSO') {
-          _flowState = RideFlowState.inProgress;
-        } else if (newStatus == 'FINALIZADO') {
-          _flowState = RideFlowState.completed;
-        }
-        fetchActiveRideStatus(_activeRide!.id);
+      if (_activeRide == null) return;
+      final lat = (data['latitude'] is num)
+          ? (data['latitude'] as num).toDouble()
+          : double.tryParse(data['latitude']?.toString() ?? '');
+      final lng = (data['longitude'] is num)
+          ? (data['longitude'] as num).toDouble()
+          : double.tryParse(data['longitude']?.toString() ?? '');
+      final heading = (data['heading'] is num)
+          ? (data['heading'] as num).toDouble()
+          : double.tryParse(data['heading']?.toString() ?? '');
+      final speed = (data['speed'] is num)
+          ? (data['speed'] as num).toDouble()
+          : double.tryParse(data['speed']?.toString() ?? '');
+
+      if (lat != null && lng != null) {
+        _activeRide = _activeRide!.copyWith(
+          driverLatitude: lat,
+          driverLongitude: lng,
+          driverHeading: heading,
+          driverSpeed: speed,
+        );
+        notifyListeners();
       }
     } catch (_) {}
+  }
+
+  void _handleRealtimeRideStatus(Map<String, dynamic> data) {
+    try {
+      final rideId = data['rideId']?.toString();
+      final status = (data['status'] ?? '').toString().toUpperCase();
+
+      if (_activeRide != null && (_activeRide!.id == rideId || rideId == null)) {
+        _updateFlowFromStatus(status);
+        if (_activeRide!.id.isNotEmpty) {
+          fetchActiveRideStatus(_activeRide!.id);
+        }
+      }
+    } catch (_) {}
+  }
+
+  void _handleRealtimeBcvRate(Map<String, dynamic> data) {
+    try {
+      final r = data['rate'];
+      if (r != null) {
+        _bcvRate = (r is num) ? r.toDouble() : (double.tryParse(r.toString()) ?? _bcvRate);
+        _bcvDate = data['officialDate']?.toString() ?? data['effectiveDate']?.toString();
+        _recalculateCategoryFares();
+        notifyListeners();
+      }
+    } catch (_) {}
+  }
+
+  void _updateFlowFromStatus(String status) {
+    switch (status) {
+      case 'SOLICITADO':
+        _flowState = RideFlowState.requestingRide;
+        break;
+      case 'ASIGNADO':
+      case 'EN_CAMINO':
+        _flowState = RideFlowState.driverAssigned;
+        break;
+      case 'ABORDAJE':
+        _flowState = RideFlowState.driverArrived;
+        break;
+      case 'EN_CURSO':
+        _flowState = RideFlowState.inProgress;
+        break;
+      case 'FINALIZADO':
+        _flowState = RideFlowState.completed;
+        _stopRidePolling();
+        break;
+      case 'CANCELADO':
+        resetToMap();
+        break;
+      default:
+        break;
+    }
+    notifyListeners();
   }
 
   Future<void> initializeData() async {
     await fetchBcvRate();
     await fetchCurrentLocation();
     await fetchNearbyDrivers();
+    await checkExistingActiveRide();
   }
 
   Future<void> fetchBcvRate() async {
     try {
-      final response = await _api.dio.get('/financials/exchange-rates/current');
-      if (response.data['success'] == true && response.data['data'] != null) {
-        _bcvRate = (response.data['data']['rate'] as num?)?.toDouble() ?? 64.85;
+      final res = await _api.dio.get('/financials/exchange-rates/current');
+      final data = res.data['data'] ?? res.data;
+      if (data != null && data['rate'] != null) {
+        final r = data['rate'];
+        _bcvRate = (r is num) ? r.toDouble() : (double.tryParse(r.toString()) ?? 875.0);
+        _bcvDate = data['officialDate']?.toString() ?? data['effectiveDate']?.toString();
+        _recalculateCategoryFares();
         notifyListeners();
       }
-    } catch (_) {
-      _bcvRate = 64.85;
+    } catch (e) {
+      debugPrint('[RideProvider] Error al obtener tasa BCV: $e');
     }
   }
 
@@ -171,8 +304,7 @@ class RideProvider extends ChangeNotifier {
         _passengerLocation = LatLng(position.latitude, position.longitude);
       }
     } catch (_) {
-      // Keep Caracas center fallback
-      _passengerLocation = const LatLng(10.4900, -66.8600);
+      _passengerLocation = const LatLng(10.4900, -66.8600); // Caracas Altamira default
     } finally {
       _isLoadingLocation = false;
       notifyListeners();
@@ -182,95 +314,154 @@ class RideProvider extends ChangeNotifier {
   Future<void> fetchNearbyDrivers() async {
     try {
       final response = await _api.dio.get('/drivers');
-      if (response.data['success'] == true && response.data['data'] != null) {
-        final List list = response.data['data'];
-        _nearbyDrivers = list
+      final data = response.data['data'] ?? response.data;
+      if (data is List) {
+        _nearbyDrivers = data
             .map((item) => DriverLocationModel.fromJson(item))
-            .where((d) => d.latitude != 0.0)
+            .where((d) => d.latitude != 0.0 && d.longitude != 0.0)
             .toList();
         notifyListeners();
       }
-    } catch (_) {
-      // Mocked nearby luxury chauffeurs for Caracas Las Mercedes / Altamira demo
-      _nearbyDrivers = [
-        DriverLocationModel(
-          driverId: 'chofer1',
-          name: 'Carlos Mendoza',
-          latitude: _passengerLocation.latitude + 0.0035,
-          longitude: _passengerLocation.longitude + 0.0025,
-          vehicleModel: 'Mercedes-Benz E-Class 2024',
-          plate: 'RF-8825',
-          category: 'SEDAN_EJECUTIVO',
-        ),
-        DriverLocationModel(
-          driverId: 'chofer2',
-          name: 'Roberto Silva',
-          latitude: _passengerLocation.latitude - 0.0040,
-          longitude: _passengerLocation.longitude - 0.0030,
-          vehicleModel: 'Cadillac Escalade Platinum',
-          plate: 'RF-0099',
-          category: 'SUV_BLINDADA',
-        ),
-        DriverLocationModel(
-          driverId: 'chofer3',
-          name: 'Fernando Quintero',
-          latitude: _passengerLocation.latitude + 0.0020,
-          longitude: _passengerLocation.longitude - 0.0045,
-          vehicleModel: 'BMW Serie 7 Individual',
-          plate: 'RF-7777',
-          category: 'VIP_GOLD',
-        ),
-      ];
+    } catch (e) {
+      debugPrint('[RideProvider] Error cargando choferes cercanos: $e');
+      _nearbyDrivers = [];
       notifyListeners();
+    }
+  }
+
+  Future<void> checkExistingActiveRide() async {
+    try {
+      final response = await _api.dio.get('/rides/passenger/active');
+      final data = response.data['data'] ?? response.data;
+      if (data != null && data['id'] != null) {
+        _activeRide = RideModel.fromJson(data);
+        _socket.joinRideRoom(_activeRide!.id);
+        _updateFlowFromStatus(_activeRide!.status);
+        _startRidePolling(_activeRide!.id);
+      }
+    } catch (e) {
+      debugPrint('[RideProvider] No active ride: $e');
     }
   }
 
   void setDestination(String address, LatLng location) {
     _destinationAddress = address;
     _destinationLocation = location;
+
+    // Calculate approximate distance using Haversine
+    const distanceCalculator = Distance();
+    final meters = distanceCalculator.as(
+      LengthUnit.Meter,
+      _passengerLocation,
+      _destinationLocation!,
+    );
+    _routeDistanceKm = double.parse((meters / 1000.0).toStringAsFixed(2));
+    if (_routeDistanceKm < 0.5) _routeDistanceKm = 0.5;
+    _routeEstimatedMinutes = (_routeDistanceKm * 2.5 + 5).ceil();
+
+    // Create preview polyline route
+    _routePoints = [
+      _passengerLocation,
+      LatLng(
+        (_passengerLocation.latitude + _destinationLocation!.latitude) / 2,
+        (_passengerLocation.longitude + _destinationLocation!.longitude) / 2,
+      ),
+      _destinationLocation!,
+    ];
+
+    _recalculateCategoryFares();
     _flowState = RideFlowState.selectingTier;
+    notifyListeners();
+
+    // Request dynamic server quote in background if available
+    _fetchServerFareEstimate();
+  }
+
+  Future<void> _fetchServerFareEstimate() async {
+    if (_destinationLocation == null) return;
+    try {
+      final response = await _api.dio.post('/rides/estimate', data: {
+        'originLat': _passengerLocation.latitude,
+        'originLng': _passengerLocation.longitude,
+        'destinationLat': _destinationLocation!.latitude,
+        'destinationLng': _destinationLocation!.longitude,
+      });
+
+      final data = response.data['data'] ?? response.data;
+      if (data != null && data['categories'] is List) {
+        final List serverCats = data['categories'];
+        for (final sc in serverCats) {
+          final catId = sc['category']?.toString();
+          final target = _categories.firstWhere((c) => c.id == catId, orElse: () => _categories[0]);
+          if (sc['fareUsd'] != null) {
+            target.fareUsd = (sc['fareUsd'] as num).toDouble();
+            target.fareVes = (sc['fareVes'] as num).toDouble();
+          }
+        }
+        notifyListeners();
+      }
+    } catch (_) {}
+  }
+
+  void _recalculateCategoryFares() {
+    for (final cat in _categories) {
+      cat.calculateFare(_routeDistanceKm, _bcvRate);
+    }
+  }
+
+  void selectCategory(VehicleCategoryQuote category) {
+    _selectedCategory = category;
     notifyListeners();
   }
 
-  void selectTier(VehicleTier tier) {
-    _selectedTier = tier;
+  void selectPaymentMethod(String method) {
+    _selectedPaymentMethod = method;
     notifyListeners();
   }
 
   void resetToMap() {
+    _stopRidePolling();
     _flowState = RideFlowState.initial;
     _destinationAddress = '';
     _destinationLocation = null;
+    _routePoints = [];
     _activeRide = null;
     _rideErrorMessage = null;
     notifyListeners();
   }
 
   Future<bool> requestRide() async {
+    if (_destinationLocation == null) return false;
+
     _isCreatingRide = true;
     _rideErrorMessage = null;
     notifyListeners();
 
     try {
+      final categoryId = _selectedCategory?.id ?? 'EXECUTIVE_SEDAN';
+      final totalFare = _selectedCategory?.fareUsd ?? 15.0;
+
       final payload = {
         'originAddress': _originAddress,
-        'originLatitude': _passengerLocation.latitude,
-        'originLongitude': _passengerLocation.longitude,
-        'destinationAddress': _destinationAddress.isNotEmpty
-            ? _destinationAddress
-            : 'Hotel Tamanaco Intercontinental',
-        'destinationLatitude': _destinationLocation?.latitude ?? (_passengerLocation.latitude + 0.015),
-        'destinationLongitude': _destinationLocation?.longitude ?? (_passengerLocation.longitude + 0.015),
-        'category': _selectedTier.id,
-        'estimatedFareUsd': _selectedTier.baseFareUsd,
+        'originLat': _passengerLocation.latitude,
+        'originLng': _passengerLocation.longitude,
+        'destinationAddress': _destinationAddress,
+        'destinationLat': _destinationLocation!.latitude,
+        'destinationLng': _destinationLocation!.longitude,
+        'categoryRequested': categoryId,
+        'paymentMethod': _selectedPaymentMethod,
+        'totalFare': totalFare,
       };
 
       final response = await _api.dio.post('/rides', data: payload);
+      final data = response.data['data'] ?? response.data;
 
-      if (response.data['success'] == true && response.data['data'] != null) {
-        _activeRide = RideModel.fromJson(response.data['data']);
+      if (response.data['success'] == true || data != null) {
+        _activeRide = RideModel.fromJson(data);
+        _socket.joinRideRoom(_activeRide!.id);
         _flowState = RideFlowState.requestingRide;
         _isCreatingRide = false;
+        _startRidePolling(_activeRide!.id);
         notifyListeners();
         return true;
       } else {
@@ -280,7 +471,7 @@ class RideProvider extends ChangeNotifier {
         return false;
       }
     } on DioException catch (e) {
-      _rideErrorMessage = e.response?.data?['message'] ?? 'Error al conectar con la central de despacho.';
+      _rideErrorMessage = e.response?.data?['message'] ?? 'Error de conexión con la central VIP.';
       _isCreatingRide = false;
       notifyListeners();
       return false;
@@ -295,29 +486,92 @@ class RideProvider extends ChangeNotifier {
   Future<void> fetchActiveRideStatus(String rideId) async {
     try {
       final response = await _api.dio.get('/rides/$rideId');
-      if (response.data['success'] == true && response.data['data'] != null) {
-        _activeRide = RideModel.fromJson(response.data['data']);
+      final data = response.data['data'] ?? response.data;
+      if (data != null) {
+        _activeRide = RideModel.fromJson(data);
+        _updateFlowFromStatus(_activeRide!.status);
         notifyListeners();
       }
     } catch (_) {}
   }
 
+  void _startRidePolling(String rideId) {
+    _stopRidePolling();
+    _ridePollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (_activeRide != null && _flowState != RideFlowState.initial) {
+        fetchActiveRideStatus(rideId);
+      } else {
+        _stopRidePolling();
+      }
+    });
+  }
+
+  void _stopRidePolling() {
+    _ridePollTimer?.cancel();
+    _ridePollTimer = null;
+  }
+
   Future<bool> cancelActiveRide() async {
-    if (_activeRide == null) return false;
-    try {
-      await _api.dio.post('/rides/${_activeRide!.id}/cancel');
+    if (_activeRide == null) {
       resetToMap();
       return true;
-    } catch (_) {
+    }
+
+    _isCancelling = true;
+    notifyListeners();
+
+    try {
+      await _api.dio.patch('/rides/${_activeRide!.id}/status', data: {
+        'status': 'CANCELADO',
+        'cancellationReason': 'Cancelado por el pasajero',
+      });
+      _isCancelling = false;
+      resetToMap();
+      return true;
+    } catch (e) {
+      debugPrint('[RideProvider] Error cancelando viaje: $e');
+      _isCancelling = false;
       resetToMap();
       return true;
     }
   }
 
+  Future<bool> submitRating({
+    required int rating,
+    String? comment,
+    int? cleanlinessRating,
+    int? punctualityRating,
+    int? comfortRating,
+  }) async {
+    if (_activeRide == null) {
+      resetToMap();
+      return true;
+    }
+
+    try {
+      await _api.dio.post('/rides/${_activeRide!.id}/rate', data: {
+        'rating': rating,
+        'comment': comment,
+        'cleanlinessRating': cleanlinessRating,
+        'punctualityRating': punctualityRating,
+        'comfortRating': comfortRating,
+      });
+      resetToMap();
+      return true;
+    } catch (e) {
+      debugPrint('[RideProvider] Error al enviar reseña: $e');
+      resetToMap();
+      return false;
+    }
+  }
+
   @override
   void dispose() {
+    _stopRidePolling();
     _socket.removeLocationListener(_handleRealtimeDriverLocation);
+    _socket.removeTelemetryListener(_handleActiveRideTelemetry);
     _socket.removeRideStatusListener(_handleRealtimeRideStatus);
+    _socket.removeBcvRateListener(_handleRealtimeBcvRate);
     super.dispose();
   }
 }

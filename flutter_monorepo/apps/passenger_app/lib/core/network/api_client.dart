@@ -27,17 +27,21 @@ class ApiClient {
       InterceptorsWrapper(
         onRequest: (options, handler) async {
           final prefs = await SharedPreferences.getInstance();
-          final token = prefs.getString('access_token');
+          final token = prefs.getString('access_token') ?? prefs.getString('passenger_access_token');
           if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';
           }
           return handler.next(options);
         },
         onError: (DioException error, handler) async {
-          if (error.response?.statusCode == 401) {
+          if (error.response?.statusCode == 401 &&
+              !error.requestOptions.path.contains('/auth/login') &&
+              !error.requestOptions.path.contains('/financials/exchange-rates')) {
             final prefs = await SharedPreferences.getInstance();
             await prefs.remove('access_token');
+            await prefs.remove('passenger_access_token');
             await prefs.remove('user_data');
+            await prefs.remove('passenger_user_data');
           }
           return handler.next(error);
         },
