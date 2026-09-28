@@ -30,6 +30,9 @@ import {
   CreditCard,
   UserCheck,
   Eye,
+  Radio,
+  Navigation,
+  MapPin,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { DriverProfileModal } from '@/components/DriverProfileModal';
@@ -38,6 +41,7 @@ import { CreateDriverModal } from '@/components/CreateDriverModal';
 import { EditDriverModal } from '@/components/EditDriverModal';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { EndShiftModal } from '@/components/EndShiftModal';
+import { DriverGpsModal } from '@/components/DriverGpsModal';
 
 interface DriverItem {
   id: string;
@@ -97,6 +101,7 @@ export default function DriversPage() {
   const [assignDriver, setAssignDriver] = useState<{ id: string; name: string } | null>(null);
   const [endShiftDriver, setEndShiftDriver] = useState<{ id: string; name: string } | null>(null);
   const [deleteConfirmDriver, setDeleteConfirmDriver] = useState<{ id: string; name: string } | null>(null);
+  const [gpsDriver, setGpsDriver] = useState<DriverItem | null>(null);
 
   // Toast
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -487,16 +492,21 @@ export default function DriversPage() {
                       </div>
                     </div>
 
-                    {/* Online Badge */}
-                    <span
-                      className={`px-2.5 py-1 text-[10px] font-bold rounded-full border shrink-0 ${
-                        d.isOnline
-                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                          : 'bg-gray-500/10 text-gray-400 border-gray-500/30'
-                      }`}
-                    >
-                      {d.isOnline ? '🟢 EN LÍNEA' : '⚪ OFFLINE'}
-                    </span>
+                    {/* Online Badge with GPS quick click */}
+                    {d.isOnline ? (
+                      <button
+                        onClick={() => setGpsDriver(d)}
+                        className="px-2.5 py-1 text-[10px] font-black rounded-full border shrink-0 bg-emerald-500/10 text-emerald-400 border-emerald-500/30 flex items-center gap-1.5 hover:bg-emerald-500/20 transition-all cursor-pointer shadow-sm"
+                        title="Click para ver ubicación GPS en tiempo real"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                        <span>🟢 EN LÍNEA</span>
+                      </button>
+                    ) : (
+                      <span className="px-2.5 py-1 text-[10px] font-bold rounded-full border shrink-0 bg-gray-500/10 text-gray-400 border-gray-500/30">
+                        ⚪ OFFLINE
+                      </span>
+                    )}
                   </div>
 
                   {/* Specs & Rating Bar */}
@@ -569,6 +579,17 @@ export default function DriversPage() {
 
                 {/* Card Actions */}
                 <div className="pt-3 border-t border-executive-border space-y-2">
+                  {/* Realtime GPS Tracker Button if Driver is Online */}
+                  {d.isOnline && (
+                    <button
+                      onClick={() => setGpsDriver(d)}
+                      className="w-full py-2.5 px-3 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 text-xs font-black rounded-xl flex items-center justify-center gap-2 transition-all shadow-md group hover:border-emerald-400"
+                    >
+                      <Radio className="w-4 h-4 text-emerald-400 animate-pulse group-hover:scale-110 transition-transform" />
+                      <span>📍 Ver Ubicación en Tiempo Real</span>
+                    </button>
+                  )}
+
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => openFullProfile(d.id, 'profile')}
@@ -680,15 +701,20 @@ export default function DriversPage() {
                         )}
                       </td>
                       <td className="px-5 py-4">
-                        <span
-                          className={`px-2.5 py-1 text-[10px] font-bold rounded-full border ${
-                            d.isOnline
-                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                              : 'bg-gray-500/10 text-gray-400 border-gray-500/30'
-                          }`}
-                        >
-                          {d.isOnline ? '🟢 ONLINE' : '⚪ OFFLINE'}
-                        </span>
+                        {d.isOnline ? (
+                          <button
+                            onClick={() => setGpsDriver(d)}
+                            className="px-2.5 py-1 text-[10px] font-black rounded-full border bg-emerald-500/10 text-emerald-400 border-emerald-500/30 flex items-center gap-1.5 hover:bg-emerald-500/20 transition-all cursor-pointer shadow-sm"
+                            title="Click para ver ubicación GPS en tiempo real"
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                            <span>🟢 ONLINE</span>
+                          </button>
+                        ) : (
+                          <span className="px-2.5 py-1 text-[10px] font-bold rounded-full border bg-gray-500/10 text-gray-400 border-gray-500/30">
+                            ⚪ OFFLINE
+                          </span>
+                        )}
                       </td>
                       <td className="px-5 py-4">
                         {pendingDocs > 0 ? (
@@ -705,6 +731,15 @@ export default function DriversPage() {
                       </td>
                       <td className="px-5 py-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
+                          {d.isOnline && (
+                            <button
+                              onClick={() => setGpsDriver(d)}
+                              className="p-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg border border-emerald-500/30 transition-colors"
+                              title="Ver ubicación GPS en tiempo real"
+                            >
+                              <Radio className="w-3.5 h-3.5 animate-pulse" />
+                            </button>
+                          )}
                           <button
                             onClick={() => openFullProfile(d.id, 'profile')}
                             className="px-2.5 py-1.5 bg-luxury-gold/10 hover:bg-luxury-gold/20 text-luxury-gold text-xs font-bold rounded-lg border border-luxury-gold/30 inline-flex items-center gap-1 transition-colors"
@@ -816,6 +851,14 @@ export default function DriversPage() {
           isDanger={true}
           onClose={() => setDeleteConfirmDriver(null)}
           onConfirm={handleConfirmDeleteDriver}
+        />
+      )}
+
+      {/* Realtime Driver GPS Modal */}
+      {gpsDriver && (
+        <DriverGpsModal
+          driver={gpsDriver}
+          onClose={() => setGpsDriver(null)}
         />
       )}
     </div>
