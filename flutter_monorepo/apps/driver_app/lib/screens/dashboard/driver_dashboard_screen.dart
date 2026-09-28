@@ -52,6 +52,10 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     final driverProfile = auth.profile;
     final driverName = driverProfile?.user.fullName ?? 'Chofer VIP';
 
+    if (driverProfile != null && driverProfile.id.isNotEmpty) {
+      shift.setDriverId(driverProfile.id);
+    }
+
     return Scaffold(
       backgroundColor: ExecutiveColors.background,
       body: Stack(
@@ -66,11 +70,11 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
               maxZoom: 18.0,
             ),
             children: [
-              // CartoDB Dark Matter Luxury Tiles
+              // OpenStreetMap High-Definition Tiles (No Watermark)
               TileLayer(
-                urlTemplate: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-                subdomains: const ['a', 'b', 'c', 'd'],
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.rumbofino.driver_app',
+                maxZoom: 19,
               ),
 
               // Route Polyline if Active Ride

@@ -239,6 +239,17 @@ export function OpenStreetMap({
           });
           markersGroup.current.addLayer(polyline);
         }
+
+        // Auto-fit camera to active driver pins and route markers
+        if (markers.length > 0 && selectionMode === 'none' && leafletInstance.current) {
+          try {
+            const group = L.featureGroup(markersGroup.current.getLayers());
+            const bounds = group.getBounds();
+            if (bounds.isValid()) {
+              leafletInstance.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+            }
+          } catch (_) {}
+        }
       }
     };
 

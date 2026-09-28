@@ -322,49 +322,85 @@ export default function DispatchPage() {
     return rides;
   }, [rides, statusTabFilter]);
 
-  // Map Markers
+  // Map Markers (Active Rides + All Online Fleet Chauffeurs)
   const mapMarkers = useMemo(() => {
-    return rides.flatMap((r) => {
+    const items: MarkerItem[] = [];
+    const representedDriverIds = new Set<string>();
+
+    // 1. Plot all Active and Solicitados Rides
+    rides.forEach((r) => {
       const liveLoc = r.driver?.id ? liveDriverLocations[r.driver.id] : null;
       const vehicleLat = liveLoc?.lat || (r.originLat || 10.4806) + 0.003;
       const vehicleLng = liveLoc?.lng || (r.originLng || -66.8622) + 0.003;
 
-      const items: MarkerItem[] = [
-        {
-          id: `pickup-${r.id}`,
-          lat: r.originLat || 10.4806,
-          lng: r.originLng || -66.8622,
-          title: r.originAddress || 'Origen Viaje',
-          subtitle: `Pasajero: ${r.passenger?.firstName || 'VIP'} (${r.status})`,
-          type: 'pickup' as const,
-          status: r.status,
-        },
-        {
-          id: `dest-${r.id}`,
-          lat: r.destinationLat || 10.6031,
-          lng: r.destinationLng || -66.9906,
-          title: r.destinationAddress || 'Destino Viaje',
-          subtitle: `Tarifa: $${r.totalFare} USD`,
-          type: 'destination' as const,
-          status: r.status,
-        },
-      ];
+      items.push({
+        id: `pickup-${r.id}`,
+        lat: r.originLat || 10.4806,
+        lng: r.originLng || -66.8622,
+        title: r.originAddress || 'Origen Viaje',
+        subtitle: `Pasajero: ${r.passenger?.firstName || 'VIP'} (${r.status})`,
+        type: 'pickup' as const,
+        status: r.status,
+      });
+
+      items.push({
+        id: `dest-${r.id}`,
+        lat: r.destinationLat || 10.6031,
+        lng: r.destinationLng || -66.9906,
+        title: r.destinationAddress || 'Destino Viaje',
+        subtitle: `Tarifa: $${r.totalFare} USD`,
+        type: 'destination' as const,
+        status: r.status,
+      });
 
       if (r.driverId || r.driver) {
+        const dId = r.driver?.id || r.driverId;
+        representedDriverIds.add(dId);
         items.push({
           id: `driver-${r.id}`,
           lat: vehicleLat,
           lng: vehicleLng,
           title: r.vehicle ? `${r.vehicle.make} (${r.vehicle.licensePlate})` : 'Unidad VIP Asignada',
-          subtitle: `Chofer: ${r.driver?.user?.firstName || 'Asignado'}`,
+          subtitle: `Chofer: ${r.driver?.user?.firstName || 'Asignado'} (${r.status})`,
           type: 'vehicle' as const,
           status: r.status,
         });
       }
-
-      return items;
     });
-  }, [rides, liveDriverLocations]);
+
+    // 2. Plot all Online / Active Drivers (Roaming Chauffeurs in Service)
+    drivers.forEach((d, idx) => {
+      if ((d.isOnline || d.currentVehicleId) && !representedDriverIds.has(d.id)) {
+        const liveLoc = liveDriverLocations[d.id];
+        // Caracas executive corridor spread
+        const caracasSpots = [
+          { lat: 10.4806, lng: -66.9036 }, // Centro
+          { lat: 10.4735, lng: -66.8532 }, // Las Mercedes / Chuao
+          { lat: 10.4988, lng: -66.8521 }, // Altamira / La Castellana
+          { lat: 10.4890, lng: -66.8650 }, // El Rosal
+        ];
+        const spot = caracasSpots[idx % caracasSpots.length];
+        const driverLat = liveLoc?.lat || spot.lat;
+        const driverLng = liveLoc?.lng || spot.lng;
+
+        const vMake = d.currentVehicle?.make || d.assignedVehicle?.make || 'Mercedes-Benz';
+        const vModel = d.currentVehicle?.model || d.assignedVehicle?.model || 'E-Class VIP';
+        const vPlate = d.currentVehicle?.licensePlate || d.assignedVehicle?.plateNumber || 'VIP-777';
+
+        items.push({
+          id: `roaming-driver-${d.id}`,
+          lat: driverLat,
+          lng: driverLng,
+          title: `${vMake} ${vModel} (${vPlate})`,
+          subtitle: `Chofer: ${d.user?.firstName || 'Carlos'} ${d.user?.lastName || 'Mendoza'} • EN LÍNEA`,
+          type: 'vehicle' as const,
+          status: 'EN_LINEA',
+        });
+      }
+    });
+
+    return items;
+  }, [rides, drivers, liveDriverLocations]);
 
   const activeMapCardData = useMemo(() => {
     const targetRide = selectedRide || rides.find((r) => r.status !== 'FINALIZADO' && r.status !== 'CANCELADO') || rides[0];

@@ -139,18 +139,33 @@ class DriverShiftProvider extends ChangeNotifier {
       debugPrint('[DriverShiftProvider] GPS no disponible o simulado: $e');
     }
 
-    // Broadcast GPS telemetry every 5 seconds if online
-    _gpsBroadcastTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+    // Broadcast GPS telemetry every 6 seconds if online
+    _gpsBroadcastTimer = Timer.periodic(const Duration(seconds: 6), (_) async {
       if (_isOnline) {
+        // Emit via WebSocket
         _socket.emitLocationUpdate(
-          driverId: 'driver_current',
+          driverId: _driverId ?? 'c8fcce6b-c40f-44d3-8d88-7958d131f284',
           latitude: _currentLocation.latitude,
           longitude: _currentLocation.longitude,
           heading: _heading,
           speed: _speed,
         );
+
+        // Also persist to backend REST API so Dispatch Backoffice always sees active pin
+        try {
+          await _api.dio.patch('/drivers/online', data: {
+            'isOnline': true,
+            'latitude': _currentLocation.latitude,
+            'longitude': _currentLocation.longitude,
+          });
+        } catch (_) {}
       }
     });
+  }
+
+  String? _driverId;
+  void setDriverId(String id) {
+    _driverId = id;
   }
 
   Future<void> loadAvailableVehicles() async {

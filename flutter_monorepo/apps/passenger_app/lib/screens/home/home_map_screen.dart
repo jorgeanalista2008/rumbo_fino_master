@@ -49,9 +49,9 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
               maxZoom: 18.0,
             ),
             children: [
-              // CartoDB Dark Matter Luxury Tiles
+              // OpenStreetMap High-Definition Tiles (No Watermark)
               TileLayer(
-                urlTemplate: 'https://basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}@2x.png',
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.rumbofino.passenger_app',
                 maxZoom: 19,
               ),
