@@ -137,132 +137,19 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
             ],
           ),
 
-          // 2. Top Executive Floating Header
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              child: Row(
-                children: [
-                  // User Avatar & Name Pill
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: ExecutiveColors.surfaceGlass,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: ExecutiveColors.borderLight),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.3),
-                            blurRadius: 12,
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 18,
-                            backgroundColor: ExecutiveColors.gold,
-                            child: Text(
-                              (auth.currentUser?.firstName.isNotEmpty ?? false)
-                                  ? auth.currentUser!.firstName[0]
-                                  : 'P',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  auth.currentUser?.fullName ?? 'Pasajero VIP',
-                                  style: ExecutiveTypography.bodyMedium.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    color: ExecutiveColors.textPrimary,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                Text(
-                                  'Membresía Ejecutiva',
-                                  style: ExecutiveTypography.bodySmall.copyWith(
-                                    fontSize: 11,
-                                    color: ExecutiveColors.gold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(width: 10),
-
-                  // BCV Live Rate Badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: ExecutiveColors.surfaceGlass,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: ExecutiveColors.borderGold),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'TASA BCV',
-                          style: ExecutiveTypography.bodySmall.copyWith(
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                            color: ExecutiveColors.gold,
-                          ),
-                        ),
-                        Text(
-                          'Bs. ${ride.bcvRate.toStringAsFixed(2)}',
-                          style: ExecutiveTypography.bodyMedium.copyWith(
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(width: 10),
-
-                  // Logout button
-                  Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () async {
-                        await auth.logout();
-                        if (context.mounted) {
-                          Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(builder: (_) => const LoginScreen()),
-                          );
-                        }
-                      },
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: ExecutiveColors.surfaceGlass,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: ExecutiveColors.borderLight),
-                        ),
-                        child: const Icon(Icons.logout, color: ExecutiveColors.textSecondary, size: 20),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          // 2. Top Executive Floating Header (Organism)
+          RfTopHeader(
+            userName: auth.currentUser?.fullName ?? 'Pasajero VIP',
+            userAvatarUrl: auth.currentUser?.avatarUrl,
+            bcvRate: ride.bcvRate,
+            onLogoutTap: () async {
+              await auth.logout();
+              if (context.mounted) {
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                );
+              }
+            },
           ),
 
           // 3. Floating Map Controls (Center GPS button)
@@ -382,31 +269,31 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
 
           const SizedBox(height: 16),
 
-          // Luxury Destinations Quick Shortcuts
+          // Luxury Destinations Quick Shortcuts (Molecules)
           Row(
             children: [
-              _buildPresetChip(
-                'Tamanaco',
-                Icons.hotel,
-                () => ride.setDestination(
+              RfShortcutChip(
+                label: 'Tamanaco',
+                icon: Icons.hotel,
+                onTap: () => ride.setDestination(
                   'Hotel Tamanaco Intercontinental',
                   LatLng(ride.passengerLocation.latitude + 0.012, ride.passengerLocation.longitude + 0.010),
                 ),
               ),
               const SizedBox(width: 8),
-              _buildPresetChip(
-                'Aeropuerto Maiquetía',
-                Icons.flight_takeoff,
-                () => ride.setDestination(
+              RfShortcutChip(
+                label: 'Aeropuerto Maiquetía',
+                icon: Icons.flight_takeoff,
+                onTap: () => ride.setDestination(
                   'Aeropuerto Intl. Simón Bolívar Maiquetía',
                   const LatLng(10.6030, -66.9906),
                 ),
               ),
               const SizedBox(width: 8),
-              _buildPresetChip(
-                'Altamira VIP',
-                Icons.business_center,
-                () => ride.setDestination(
+              RfShortcutChip(
+                label: 'Altamira VIP',
+                icon: Icons.business_center,
+                onTap: () => ride.setDestination(
                   'Torre Altamira Business Hub',
                   LatLng(ride.passengerLocation.latitude + 0.008, ride.passengerLocation.longitude + 0.006),
                 ),
@@ -414,41 +301,6 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildPresetChip(String label, IconData icon, VoidCallback onTap) {
-    return Expanded(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            decoration: BoxDecoration(
-              color: ExecutiveColors.surfaceElevated,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: ExecutiveColors.border),
-            ),
-            child: Column(
-              children: [
-                Icon(icon, color: ExecutiveColors.gold, size: 18),
-                const SizedBox(height: 4),
-                Text(
-                  label,
-                  style: ExecutiveTypography.bodySmall.copyWith(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: ExecutiveColors.textPrimary,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -480,86 +332,24 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
           ),
           const SizedBox(height: 12),
 
-          // Tiers List
+          // Tiers List (Organisms)
           ...RideProvider.availableTiers.map((tier) {
             final isSelected = ride.selectedTier.id == tier.id;
-            return Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              child: LuxuryCard(
-                padding: const EdgeInsets.all(14),
-                hasGoldBorder: isSelected,
-                onTap: () => ride.selectTier(tier),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? ExecutiveColors.gold.withOpacity(0.15)
-                            : ExecutiveColors.surfaceElevated,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: isSelected ? ExecutiveColors.gold : ExecutiveColors.border,
-                        ),
-                      ),
-                      child: Icon(
-                        tier.id == 'SUV_BLINDADA'
-                            ? Icons.shield_outlined
-                            : (tier.id == 'VIP_GOLD'
-                                ? Icons.stars_rounded
-                                : Icons.directions_car_filled_rounded),
-                        color: isSelected ? ExecutiveColors.gold : ExecutiveColors.textSecondary,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                tier.name,
-                                style: ExecutiveTypography.bodyLarge.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: isSelected ? ExecutiveColors.gold : Colors.white,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                                decoration: BoxDecoration(
-                                  color: ExecutiveColors.gold.withOpacity(0.12),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  tier.badge,
-                                  style: const TextStyle(
-                                    fontSize: 8,
-                                    fontWeight: FontWeight.bold,
-                                    color: ExecutiveColors.gold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          Text(
-                            tier.subtitle,
-                            style: ExecutiveTypography.bodySmall.copyWith(fontSize: 11),
-                          ),
-                        ],
-                      ),
-                    ),
-                    DualCurrencyDisplay(
-                      amountUsd: tier.baseFareUsd,
-                      bcvRate: ride.bcvRate,
-                      isLarge: false,
-                    ),
-                  ],
-                ),
-              ),
+            final icon = tier.id == 'SUV_BLINDADA'
+                ? Icons.shield_outlined
+                : (tier.id == 'VIP_GOLD'
+                    ? Icons.stars_rounded
+                    : Icons.directions_car_filled_rounded);
+
+            return RfVehicleTierCard(
+              title: tier.name,
+              subtitle: tier.subtitle,
+              badgeText: tier.badge,
+              fareUsd: tier.baseFareUsd,
+              bcvRate: ride.bcvRate,
+              icon: icon,
+              isSelected: isSelected,
+              onTap: () => ride.selectTier(tier),
             );
           }),
 

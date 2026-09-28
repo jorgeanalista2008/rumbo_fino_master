@@ -1,7 +1,23 @@
 library core_ui;
 
+// Theme & Tokens
 export 'src/theme/executive_colors.dart';
 export 'src/theme/executive_typography.dart';
+
+// Atoms
+export 'src/atoms/rf_pulse_dot.dart';
+export 'src/atoms/rf_badge.dart';
+export 'src/atoms/rf_avatar.dart';
+
+// Molecules
+export 'src/molecules/rf_user_pill.dart';
+export 'src/molecules/rf_shortcut_chip.dart';
+
+// Organisms
+export 'src/organisms/rf_vehicle_tier_card.dart';
+export 'src/organisms/rf_top_header.dart';
+
+// Base Widgets
 export 'src/widgets/luxury_button.dart';
 export 'src/widgets/luxury_card.dart';
 export 'src/widgets/luxury_text_field.dart';
