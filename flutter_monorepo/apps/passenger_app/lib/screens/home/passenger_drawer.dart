@@ -28,19 +28,11 @@ class PassengerDrawer extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  CircleAvatar(
+                  RfAvatar(
+                    name: user?.fullName ?? 'Pasajero VIP',
+                    imageUrl: user?.avatarUrl,
                     radius: 28,
-                    backgroundColor: ExecutiveColors.gold.withOpacity(0.2),
-                    child: Text(
-                      user != null && user.firstName.isNotEmpty
-                          ? user.firstName[0].toUpperCase()
-                          : 'P',
-                      style: const TextStyle(
-                        color: ExecutiveColors.gold,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 22,
-                      ),
-                    ),
+                    hasGoldBorder: true,
                   ),
                   const SizedBox(width: 14),
                   Expanded(

@@ -1,83 +1,63 @@
-import { Injectable, Logger } from '@nestjs/common';
-import * as fs from 'fs';
-import * as path from 'path';
-import { S3 } from 'aws-sdk';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { UploadedFileEntity } from '../database/entities/uploaded-file.entity';
 
 @Injectable()
 export class StorageService {
   private readonly logger = new Logger(StorageService.name);
-  private s3: S3 | null = null;
-  private bucketName: string;
-  private useS3 = false;
 
-  constructor() {
-    this.bucketName = process.env.S3_BUCKET_NAME || 'rumbo-fino-documents';
+  constructor(
+    @InjectRepository(UploadedFileEntity)
+    private readonly fileRepository: Repository<UploadedFileEntity>,
+  ) {}
 
-    // Only configure S3 if explicit AWS/MinIO endpoint is provided and not in purely local mode
-    if (process.env.USE_S3 === 'true') {
-      try {
-        this.s3 = new S3({
-          endpoint: process.env.S3_ENDPOINT || 'http://localhost:9000',
-          accessKeyId: process.env.S3_ACCESS_KEY || 'minioadmin',
-          secretAccessKey: process.env.S3_SECRET_KEY || 'minioadmin',
-          s3ForcePathStyle: true,
-          signatureVersion: 'v4',
-        });
-        this.useS3 = true;
-      } catch (err: any) {
-        this.logger.warn(`S3/MinIO no disponible, usando almacenamiento local: ${err.message}`);
-        this.useS3 = false;
-      }
+  private getBaseUrl(): string {
+    if (process.env.BACKEND_URL) {
+      return process.env.BACKEND_URL.replace(/\/+$/, '');
     }
+    if (process.env.VERCEL_URL) {
+      return `https://${process.env.VERCEL_URL}`;
+    }
+    return 'https://rumbo-fino-master.vercel.app';
   }
 
+  /**
+   * Guarda un archivo binario de forma persistente en Supabase PostgreSQL.
+   * Totalmente compatible con entornos Serverless (Vercel) sin depender de disco local.
+   */
+  async saveFile(fileBuffer: Buffer, fileName: string, mimeType: string): Promise<string> {
+    const safeName = fileName || `file_${Date.now()}`;
+    const safeMime = mimeType || 'application/octet-stream';
+
+    const fileRecord = this.fileRepository.create({
+      fileName: safeName,
+      mimeType: safeMime,
+      fileSize: fileBuffer.length,
+      data: fileBuffer,
+    });
+
+    const saved = await this.fileRepository.save(fileRecord);
+    this.logger.log(`✅ Archivo almacenado en PostgreSQL: ${saved.id} (${saved.fileName}, ${saved.fileSize} bytes)`);
+
+    return `${this.getBaseUrl()}/api/v1/storage/files/${saved.id}`;
+  }
+
+  /**
+   * Alias retrocompatible para servicios existentes (e.g. VehiclesService).
+   */
   async uploadFile(fileBuffer: Buffer, fileName: string, mimeType: string): Promise<string> {
-    const ext = path.extname(fileName) || (mimeType.includes('pdf') ? '.pdf' : '.jpg');
-    const safeName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}${ext}`;
-
-    // 1. Try S3 if configured
-    if (this.useS3 && this.s3) {
-      try {
-        await this.s3
-          .upload({
-            Bucket: this.bucketName,
-            Key: safeName,
-            Body: fileBuffer,
-            ContentType: mimeType,
-            ACL: 'private',
-          })
-          .promise();
-
-        return this.getSignedUrl(safeName);
-      } catch (err: any) {
-        this.logger.warn(`Fallo al subir a S3/MinIO (${err.message}). Guardando en disco local.`);
-      }
-    }
-
-    // 2. Local Disk Storage (Reliable, instantaneous, and served statically)
-    const uploadsFolder = path.join(process.cwd(), 'uploads', 'vehicles');
-    if (!fs.existsSync(uploadsFolder)) {
-      fs.mkdirSync(uploadsFolder, { recursive: true });
-    }
-
-    const filePath = path.join(uploadsFolder, safeName);
-    fs.writeFileSync(filePath, fileBuffer);
-
-    const port = process.env.PORT || 3000;
-    const baseUrl = process.env.BACKEND_URL || `http://localhost:${port}`;
-    return `${baseUrl}/uploads/vehicles/${safeName}`;
+    return this.saveFile(fileBuffer, fileName, mimeType);
   }
 
-  async getSignedUrl(key: string): Promise<string> {
-    if (this.s3) {
-      return this.s3.getSignedUrlPromise('getObject', {
-        Bucket: this.bucketName,
-        Key: key,
-        Expires: 86400, // 24 hours validity
-      });
+  /**
+   * Recupera el archivo binario y metadatos por su ID UUID.
+   */
+  async getFile(id: string): Promise<UploadedFileEntity> {
+    const file = await this.fileRepository.findOne({ where: { id } });
+    if (!file) {
+      throw new NotFoundException(`Archivo con ID ${id} no encontrado.`);
     }
-    const port = process.env.PORT || 3000;
-    const baseUrl = process.env.BACKEND_URL || `http://localhost:${port}`;
-    return `${baseUrl}/uploads/vehicles/${key}`;
+    return file;
   }
 }

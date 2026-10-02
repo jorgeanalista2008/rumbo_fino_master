@@ -1,8 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../theme/executive_colors.dart';
 
-class RfAvatar extends StatelessWidget {
+class RfAvatar extends StatefulWidget {
   final String? name;
   final String? imageUrl;
   final double radius;
@@ -16,46 +17,92 @@ class RfAvatar extends StatelessWidget {
     this.hasGoldBorder = true,
   });
 
+  @override
+  State<RfAvatar> createState() => _RfAvatarState();
+}
+
+class _RfAvatarState extends State<RfAvatar> {
+  bool _hasError = false;
+
+  @override
+  void didUpdateWidget(covariant RfAvatar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.imageUrl != widget.imageUrl) {
+      setState(() {
+        _hasError = false;
+      });
+    }
+  }
+
   String get _initials {
-    if (name == null || name!.isEmpty) return 'RF';
-    final parts = name!.trim().split(' ');
+    final name = widget.name;
+    if (name == null || name.trim().isEmpty) return 'RF';
+    final parts = name.trim().split(RegExp(r'\s+'));
     if (parts.length > 1) {
       return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
     }
     return parts[0][0].toUpperCase();
   }
 
+  ImageProvider? get _imageProvider {
+    if (_hasError) return null;
+    final url = widget.imageUrl;
+    if (url == null || url.trim().isEmpty) return null;
+    final trimmed = url.trim();
+    if (trimmed.startsWith('data:image/') && trimmed.contains('base64,')) {
+      try {
+        final b64 = trimmed.split('base64,').last;
+        return MemoryImage(base64Decode(b64));
+      } catch (_) {
+        return null;
+      }
+    }
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return NetworkImage(trimmed);
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final imageProvider = _imageProvider;
+
     return Container(
-      width: radius * 2,
-      height: radius * 2,
+      width: widget.radius * 2,
+      height: widget.radius * 2,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
-          color: hasGoldBorder ? ExecutiveColors.gold : ExecutiveColors.borderLight,
+          color: widget.hasGoldBorder ? ExecutiveColors.gold : ExecutiveColors.borderLight,
           width: 1.5,
         ),
         boxShadow: [
-          if (hasGoldBorder)
+          if (widget.hasGoldBorder)
             BoxShadow(
-              color: ExecutiveColors.gold.withOpacity(0.2),
+              color: ExecutiveColors.gold.withValues(alpha: 0.2),
               blurRadius: 8,
             ),
         ],
       ),
       child: CircleAvatar(
-        radius: radius,
+        radius: widget.radius,
         backgroundColor: ExecutiveColors.surfaceElevated,
-        backgroundImage: imageUrl != null && imageUrl!.isNotEmpty
-            ? NetworkImage(imageUrl!)
+        backgroundImage: imageProvider,
+        onBackgroundImageError: imageProvider != null
+            ? (_, __) {
+                if (mounted) {
+                  setState(() {
+                    _hasError = true;
+                  });
+                }
+              }
             : null,
-        child: (imageUrl == null || imageUrl!.isEmpty)
+        child: imageProvider == null
             ? Text(
                 _initials,
                 style: TextStyle(
                   fontFamily: 'Outfit',
-                  fontSize: radius * 0.75,
+                  fontSize: widget.radius * 0.75,
                   fontWeight: FontWeight.w800,
                   color: ExecutiveColors.gold,
                 ),
@@ -86,7 +133,7 @@ class RfEmblem extends StatelessWidget {
         borderRadius: BorderRadius.circular(size * 0.28),
         boxShadow: [
           BoxShadow(
-            color: ExecutiveColors.gold.withOpacity(0.35),
+            color: ExecutiveColors.gold.withValues(alpha: 0.35),
             blurRadius: size * 0.35,
             offset: Offset(0, size * 0.1),
           ),

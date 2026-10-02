@@ -49,22 +49,9 @@ export class DriversService {
   ) {}
 
   async uploadFile(file: any): Promise<string> {
-    const uploadsFolder = path.join(process.cwd(), 'uploads', 'drivers');
-    if (!fs.existsSync(uploadsFolder)) {
-      fs.mkdirSync(uploadsFolder, { recursive: true });
-    }
-
-    const fileExtension =
-      path.extname(file.originalname) || (file.mimetype.includes('pdf') ? '.pdf' : '.jpg');
-    const safeFileName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}${fileExtension}`;
-    const filePath = path.join(uploadsFolder, safeFileName);
-
-    // Physical write to server disk
-    fs.writeFileSync(filePath, file.buffer);
-
-    const port = process.env.PORT || 3000;
-    const baseUrl = process.env.BACKEND_URL || `http://localhost:${port}`;
-    return `${baseUrl}/uploads/drivers/${safeFileName}`;
+    const fileName = file.originalname || `driver_${Date.now()}`;
+    const mimeType = file.mimetype || 'image/jpeg';
+    return this.storageService.saveFile(file.buffer, fileName, mimeType);
   }
 
   async createDriverProfile(dto: CreateDriverDto): Promise<DriverEntity> {

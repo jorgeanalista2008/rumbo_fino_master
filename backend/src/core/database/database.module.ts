@@ -15,6 +15,7 @@ import { TransactionEntity } from './entities/transaction.entity';
 import { ReviewEntity } from './entities/review.entity';
 import { ExchangeRateEntity } from './entities/exchange-rate.entity';
 import { RolePermissionEntity } from './entities/role-permission.entity';
+import { UploadedFileEntity } from './entities/uploaded-file.entity';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { RolePermissionEntity } from './entities/role-permission.entity';
           ReviewEntity,
           ExchangeRateEntity,
           RolePermissionEntity,
+          UploadedFileEntity,
         ],
         ssl:
           configService.get<string>('DB_SSL') === 'true' ||
