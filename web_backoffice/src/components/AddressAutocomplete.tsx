@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { MapPin, Navigation, Search, Loader2, X } from 'lucide-react';
+import { MAPBOX_TOKEN } from '@/lib/mapbox';
 
 interface LocationResult {
   place_id: number;
@@ -61,26 +62,28 @@ export function AddressAutocomplete({
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
       try {
-        const query = encodeURIComponent(`${text.trim()}, Venezuela`);
+        const query = encodeURIComponent(text.trim());
         const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${query}&countrycodes=ve&format=json&limit=5&addressdetails=1`,
-          {
-            headers: {
-              'User-Agent': 'RumboFino-Backoffice-Autocomplete/1.0',
-            },
-          },
+          `https://api.mapbox.com/geocoding/v5/mapbox.places/${query}.json?country=ve&language=es&limit=6&access_token=${MAPBOX_TOKEN}`
         );
         const data = await res.json();
-        if (Array.isArray(data)) {
-          setSuggestions(data);
-          setIsOpen(data.length > 0);
+        if (data && Array.isArray(data.features)) {
+          const mapped: LocationResult[] = data.features.map((f: any, idx: number) => ({
+            place_id: idx,
+            display_name: f.place_name,
+            lat: f.center[1].toString(),
+            lon: f.center[0].toString(),
+            type: f.place_type?.[0] || 'place',
+          }));
+          setSuggestions(mapped);
+          setIsOpen(mapped.length > 0);
         }
       } catch (err) {
-        console.warn('Error al autocompletar dirección en Venezuela:', err);
+        console.warn('Error al autocompletar dirección con Mapbox:', err);
       } finally {
         setLoading(false);
       }
-    }, 350);
+    }, 300);
   };
 
   const handleSelect = (item: LocationResult) => {

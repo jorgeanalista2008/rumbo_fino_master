@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:core_ui/core_ui.dart';
+import 'package:core_location/core_location.dart';
 import '../../core/providers/driver_auth_provider.dart';
 import '../../core/providers/driver_shift_provider.dart';
 import '../../models/driver_ride_model.dart';
@@ -85,11 +86,14 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
               maxZoom: 18.0,
             ),
             children: [
-              // OpenStreetMap High-Definition Tiles (No Watermark)
+              // Mapbox High-Definition Luxury Dark Tiles
               TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                urlTemplate: MapboxConfig.darkTilesUrl,
                 userAgentPackageName: 'com.rumbofino.driver_app',
                 maxZoom: 19,
+                additionalOptions: const {
+                  'accessToken': MapboxConfig.accessToken,
+                },
               ),
 
               // Route Polyline if Active Ride

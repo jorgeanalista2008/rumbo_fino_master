@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
+import { MAPBOX_TOKEN } from '@/lib/mapbox';
 
 export interface MarkerItem {
   id: string;
@@ -132,13 +133,17 @@ export function OpenStreetMap({
           zoomControl: true,
         });
 
-        // OpenStreetMap Free Tile Layer
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 18,
-          minZoom: 6,
-          bounds: VENEZUELA_BOUNDS,
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> | Rumbo Fino Venezuela',
-        }).addTo(map);
+        // Mapbox High-Definition Luxury Dark Tiles
+        L.tileLayer(
+          `https://api.mapbox.com/styles/v1/mapbox/dark-v11/tiles/256/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`,
+          {
+            maxZoom: 19,
+            minZoom: 5,
+            tileSize: 256,
+            bounds: VENEZUELA_BOUNDS,
+            attribution: '© <a href="https://www.mapbox.com/about/maps/">Mapbox</a> | Rumbo Fino VIP',
+          }
+        ).addTo(map);
 
         markersGroup.current = L.layerGroup().addTo(map);
         leafletInstance.current = map;
@@ -156,16 +161,14 @@ export function OpenStreetMap({
             let placeName = `Venezuela (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
             try {
               const res = await fetch(
-                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
-                { headers: { 'User-Agent': 'RumboFino-Venezuela-App/1.0' } }
+                `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${MAPBOX_TOKEN}&language=es`
               );
               const data = await res.json();
-              if (data && data.display_name) {
-                const parts = data.display_name.split(', ');
-                placeName = parts.slice(0, 3).join(', ');
+              if (data && Array.isArray(data.features) && data.features.length > 0) {
+                placeName = data.features[0].place_name;
               }
             } catch (err) {
-              console.warn('Geocodificación inversa preliminar offline:', err);
+              console.warn('Geocodificación Mapbox offline:', err);
             }
             onLocationSelect(lat, lng, mode, placeName);
           }

@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import 'package:core_ui/core_ui.dart';
+import 'package:core_location/core_location.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/ride_provider.dart';
 import 'destination_search_dialog.dart';
@@ -79,9 +80,12 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                urlTemplate: MapboxConfig.darkTilesUrl,
                 userAgentPackageName: 'com.rumbofino.passenger_app',
                 maxZoom: 19,
+                additionalOptions: const {
+                  'accessToken': MapboxConfig.accessToken,
+                },
               ),
 
               // Polyline Route Layer (when route points exist)
