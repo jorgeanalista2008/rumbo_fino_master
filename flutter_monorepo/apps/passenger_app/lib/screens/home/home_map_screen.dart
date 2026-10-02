@@ -83,9 +83,6 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
                 urlTemplate: MapboxConfig.darkTilesUrl,
                 userAgentPackageName: 'com.rumbofino.passenger_app',
                 maxZoom: 19,
-                additionalOptions: const {
-                  'accessToken': MapboxConfig.accessToken,
-                },
               ),
 
               // Polyline Route Layer (when route points exist)

@@ -91,9 +91,6 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                 urlTemplate: MapboxConfig.darkTilesUrl,
                 userAgentPackageName: 'com.rumbofino.driver_app',
                 maxZoom: 19,
-                additionalOptions: const {
-                  'accessToken': MapboxConfig.accessToken,
-                },
               ),
 
               // Route Polyline if Active Ride
