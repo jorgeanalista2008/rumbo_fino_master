@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Shield,
@@ -23,14 +23,167 @@ import {
   Radio,
   Coins,
   Send,
+  Navigation,
+  RefreshCw,
+  Layers,
+  Crosshair,
+  Check,
+  AlertCircle,
+  MessageCircle,
+  DollarSign,
+  ArrowUpDown,
+  LocateFixed,
+  Route,
+  Zap,
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import OpenStreetMap, { MarkerItem } from '@/components/OpenStreetMap';
+import { fetchMapboxRoute, reverseGeocodeMapbox } from '@/lib/mapbox';
+
+interface LocationPreset {
+  name: string;
+  shortName: string;
+  lat: number;
+  lng: number;
+  icon: string;
+}
+
+const POPULAR_LOCATIONS: LocationPreset[] = [
+  {
+    name: 'Aeropuerto Internacional de Maiquetía (CCS)',
+    shortName: 'Aeropuerto CCS',
+    lat: 10.6033,
+    lng: -66.9906,
+    icon: '✈️',
+  },
+  {
+    name: 'Las Mercedes (Zona Gourmet & Financiera), Caracas',
+    shortName: 'Las Mercedes',
+    lat: 10.4795,
+    lng: -66.8624,
+    icon: '🍸',
+  },
+  {
+    name: 'Altamira / Plaza Francia, Chacao',
+    shortName: 'Altamira',
+    lat: 10.4965,
+    lng: -66.8529,
+    icon: '🏛️',
+  },
+  {
+    name: 'El Rosal / Centro Financiero de Caracas',
+    shortName: 'El Rosal',
+    lat: 10.4901,
+    lng: -66.8687,
+    icon: '💼',
+  },
+  {
+    name: 'La Castellana / Centro San Ignacio',
+    shortName: 'La Castellana',
+    lat: 10.4998,
+    lng: -66.8552,
+    icon: '🏢',
+  },
+  {
+    name: 'Hotel Humboldt / Warairarepano (El Ávila)',
+    shortName: 'Hotel Humboldt',
+    lat: 10.5398,
+    lng: -66.8837,
+    icon: '⛰️',
+  },
+  {
+    name: 'La Lagunita Country Club, El Hatillo',
+    shortName: 'La Lagunita',
+    lat: 10.4285,
+    lng: -66.8042,
+    icon: '⛳',
+  },
+  {
+    name: 'Valencia (Urb. Guaparo / El Viñedo), Carabobo',
+    shortName: 'Valencia',
+    lat: 10.2201,
+    lng: -68.0062,
+    icon: '🏭',
+  },
+];
+
+interface FareTier {
+  id: string;
+  name: string;
+  models: string;
+  passengers: number;
+  luggage: string;
+  baseFare: number;
+  perKm: number;
+  perMinute: number;
+  airportMinFare: number;
+  badge: string;
+}
+
+const FARE_TIERS: Record<string, FareTier> = {
+  SEDAN: {
+    id: 'SEDAN',
+    name: 'Sedán Black VIP',
+    models: 'Toyota Camry / Mercedes-Benz C-Class',
+    passengers: 3,
+    luggage: '2 Maletas Grandes',
+    baseFare: 20.0,
+    perKm: 1.5,
+    perMinute: 0.2,
+    airportMinFare: 45.0,
+    badge: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
+  },
+  SUV: {
+    id: 'SUV',
+    name: 'SUV Premium Executive',
+    models: 'Land Cruiser 300 / Tahoe / Prado TXL',
+    passengers: 5,
+    luggage: '4 Maletas Grandes',
+    baseFare: 35.0,
+    perKm: 2.2,
+    perMinute: 0.3,
+    airportMinFare: 75.0,
+    badge: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+  },
+  ARMORED: {
+    id: 'ARMORED',
+    name: 'SUV Blindada Nivel VR7',
+    models: 'Suburban / Escalade Armor Nivel IV Balístico',
+    passengers: 4,
+    luggage: '3 Maletas Grandes',
+    baseFare: 80.0,
+    perKm: 4.5,
+    perMinute: 0.6,
+    airportMinFare: 180.0,
+    badge: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
+  },
+};
 
 export default function LandingPage() {
   const [bcvRate, setBcvRate] = useState<number>(875.0);
-  const [quoteOrigin, setQuoteOrigin] = useState<string>('Las Mercedes, Caracas');
+
+  // Cotizador State
+  const [quoteOrigin, setQuoteOrigin] = useState<string>('Las Mercedes (Zona Gourmet & Financiera), Caracas');
   const [quoteDestination, setQuoteDestination] = useState<string>('Aeropuerto Internacional de Maiquetía (CCS)');
+  const [originCoords, setOriginCoords] = useState<{ lat: number; lng: number }>({
+    lat: 10.4795,
+    lng: -66.8624,
+  });
+  const [destinationCoords, setDestinationCoords] = useState<{ lat: number; lng: number }>({
+    lat: 10.6033,
+    lng: -66.9906,
+  });
   const [quoteCategory, setQuoteCategory] = useState<string>('SEDAN');
+  const [mapSelectionMode, setMapSelectionMode] = useState<'pickup' | 'destination' | 'none'>('none');
+  const [routePolyline, setRoutePolyline] = useState<Array<[number, number]>>([]);
+  const [routeDistanceKm, setRouteDistanceKm] = useState<number>(31.4);
+  const [routeDurationMin, setRouteDurationMin] = useState<number>(42);
+  const [calculatingRoute, setCalculatingRoute] = useState<boolean>(false);
+
+  // Passenger form
+  const [passengerName, setPassengerName] = useState<string>('');
+  const [passengerPhone, setPassengerPhone] = useState<string>('');
+  const [passengerNotes, setPassengerNotes] = useState<string>('');
   const [quoteSuccess, setQuoteSuccess] = useState<boolean>(false);
 
   useEffect(() => {
@@ -45,10 +198,144 @@ export default function LandingPage() {
       .catch(() => {});
   }, []);
 
+  // Route Calculation Handler
+  const calculateRouteBetween = useCallback(
+    async (orig: { lat: number; lng: number }, dest: { lat: number; lng: number }) => {
+      setCalculatingRoute(true);
+      try {
+        const routeData = await fetchMapboxRoute([orig.lng, orig.lat], [dest.lng, dest.lat]);
+        if (routeData && routeData.coordinates.length > 0) {
+          // Convert GeoJSON [lng, lat] to [lat, lng] for MapboxMap polyline
+          const poly: Array<[number, number]> = routeData.coordinates.map(([lng, lat]) => [lat, lng]);
+          setRoutePolyline(poly);
+          setRouteDistanceKm(routeData.distanceKm);
+          setRouteDurationMin(routeData.durationMinutes);
+        }
+      } catch (err) {
+        console.warn('Error calculando ruta en cotizador:', err);
+      } finally {
+        setCalculatingRoute(false);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    // Initial route computation for Las Mercedes -> Maiquetía
+    calculateRouteBetween(originCoords, destinationCoords);
+  }, [calculateRouteBetween]);
+
+  // Handle Preset Select
+  const handleSelectPreset = (preset: LocationPreset, target: 'origin' | 'destination') => {
+    if (target === 'origin') {
+      setOriginCoords({ lat: preset.lat, lng: preset.lng });
+      setQuoteOrigin(preset.name);
+      calculateRouteBetween({ lat: preset.lat, lng: preset.lng }, destinationCoords);
+    } else {
+      setDestinationCoords({ lat: preset.lat, lng: preset.lng });
+      setQuoteDestination(preset.name);
+      calculateRouteBetween(originCoords, { lat: preset.lat, lng: preset.lng });
+    }
+  };
+
+  // Handle Map Click Selection
+  const handleMapLocationSelect = (
+    lat: number,
+    lng: number,
+    mode: 'pickup' | 'destination',
+    placeName?: string
+  ) => {
+    const formatted = placeName || `Punto en Mapa (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+    if (mapSelectionMode === 'pickup' || mode === 'pickup') {
+      setOriginCoords({ lat, lng });
+      setQuoteOrigin(formatted);
+      calculateRouteBetween({ lat, lng }, destinationCoords);
+      setMapSelectionMode('destination');
+    } else {
+      setDestinationCoords({ lat, lng });
+      setQuoteDestination(formatted);
+      calculateRouteBetween(originCoords, { lat, lng });
+      setMapSelectionMode('none');
+    }
+  };
+
+  // Swap Locations
+  const handleSwapLocations = () => {
+    const tempCoords = originCoords;
+    const tempName = quoteOrigin;
+    setOriginCoords(destinationCoords);
+    setQuoteOrigin(quoteDestination);
+    setDestinationCoords(tempCoords);
+    setQuoteDestination(tempName);
+    calculateRouteBetween(destinationCoords, tempCoords);
+  };
+
+  // Map Markers
+  const mapMarkers: MarkerItem[] = useMemo(() => {
+    return [
+      {
+        id: 'cotizador-origin',
+        lat: originCoords.lat,
+        lng: originCoords.lng,
+        title: 'Punto de Recogida',
+        subtitle: quoteOrigin,
+        type: 'pickup',
+      },
+      {
+        id: 'cotizador-destination',
+        lat: destinationCoords.lat,
+        lng: destinationCoords.lng,
+        title: 'Destino Ejecutivo',
+        subtitle: quoteDestination,
+        type: 'destination',
+      },
+    ];
+  }, [originCoords, destinationCoords, quoteOrigin, quoteDestination]);
+
+  // Fare Calculation
+  const isAirportRoute = useMemo(() => {
+    const fullText = `${quoteOrigin} ${quoteDestination}`.toLowerCase();
+    return fullText.includes('maiquet') || fullText.includes('ccs') || fullText.includes('aeropuerto');
+  }, [quoteOrigin, quoteDestination]);
+
+  const activeTier = FARE_TIERS[quoteCategory] || FARE_TIERS.SEDAN;
+  const estimatedFareUsd = useMemo(() => {
+    const base = activeTier.baseFare;
+    const distanceCost = routeDistanceKm * activeTier.perKm;
+    const timeCost = routeDurationMin * activeTier.perMinute;
+    const total = base + distanceCost + timeCost;
+    if (isAirportRoute) {
+      return Math.max(total, activeTier.airportMinFare);
+    }
+    return Math.max(total, activeTier.baseFare);
+  }, [activeTier, routeDistanceKm, routeDurationMin, isAirportRoute]);
+
+  const estimatedFareBcv = useMemo(() => {
+    return estimatedFareUsd * bcvRate;
+  }, [estimatedFareUsd, bcvRate]);
+
+  // WhatsApp Booking
+  const handleWhatsAppBooking = () => {
+    const msg =
+      `*SOLICITUD DE TRASLADO VIP - RUMBO FINO*\n\n` +
+      `🚗 *Vehículo:* ${activeTier.name} (${activeTier.models})\n` +
+      `📍 *Punto de Inicio:* ${quoteOrigin}\n` +
+      `🏁 *Punto de Llegada:* ${quoteDestination}\n` +
+      `📏 *Distancia:* ${routeDistanceKm.toFixed(1)} km (~${routeDurationMin} min de trayecto)\n` +
+      `💵 *Tarifa Estimada:* $${estimatedFareUsd.toFixed(2)} USD (Bs. ${estimatedFareBcv.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})\n` +
+      (passengerName ? `👤 *Titular / Empresa:* ${passengerName}\n` : '') +
+      (passengerPhone ? `📞 *Contacto:* ${passengerPhone}\n` : '') +
+      (passengerNotes ? `📝 *Observaciones:* ${passengerNotes}\n` : '') +
+      `\nSolicito confirmación de reserva inmediata con protocolo ejecutivo.`;
+
+    const url = `https://wa.me/584140000000?text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank');
+  };
+
   const handleQuoteSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setQuoteSuccess(true);
-    setTimeout(() => setQuoteSuccess(false), 5000);
+    setTimeout(() => setQuoteSuccess(false), 6000);
   };
 
   return (
@@ -372,118 +659,392 @@ export default function LandingPage() {
       </section>
 
       {/* ========================================================================= */}
-      {/* 6. COTIZADOR RÁPIDO & RESERVAS */}
+      {/* 6. COTIZADOR INTERACTIVO CON MAPBOX GL & ESTIMACIÓN DE TARIFA */}
       {/* ========================================================================= */}
-      <section id="cotizador" className="py-20 bg-[#080D1A] border-t border-executive-border/60">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-executive-card border border-luxury-gold/30 rounded-3xl p-8 sm:p-12 shadow-2xl relative overflow-hidden">
-            <div className="text-center space-y-2 mb-8">
-              <span className="text-xs font-black text-luxury-gold uppercase tracking-[0.2em]">
-                Cotizador en Vivo
-              </span>
-              <h2 className="text-2xl sm:text-3xl font-black text-white">
-                Reserve su Próximo Traslado Ejecutivo
-              </h2>
-              <p className="text-xs text-gray-400">
-                Respuesta inmediata y confirmación de disponibilidad con chofer asignado.
-              </p>
+      <section id="cotizador" className="py-20 bg-[#080D1A] border-t border-executive-border/60 relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+          {/* Header */}
+          <div className="text-center max-w-3xl mx-auto space-y-3">
+            <span className="text-xs font-black text-luxury-gold uppercase tracking-[0.25em] flex items-center justify-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5" /> MAPBOX VECTOR GL • ESTIMADOR DE RUTA Y TARIFA EN TIEMPO REAL
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-black text-white">
+              Calculadora de Rutas &amp; Cotizador Ejecutivo VIP
+            </h2>
+            <p className="text-xs text-gray-400 leading-relaxed">
+              Establezca su punto de inicio y punto de llegada directamente en el mapa satelital o explore nuestras ubicaciones frecuentes para calcular la distancia de viaje, tiempo estimado y costo oficial en USD y Bolívares BCV.
+            </p>
+          </div>
+
+          {/* Interactive Cotizador Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            {/* LEFT: MAPBOX INTERACTIVE MAP & PRESETS (7 COLS) */}
+            <div className="lg:col-span-7 space-y-4">
+              {/* Map Action Bar */}
+              <div className="bg-executive-card border border-executive-border rounded-2xl p-3 flex flex-wrap items-center justify-between gap-3 shadow-lg">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-gray-300 flex items-center gap-1.5">
+                    <Crosshair className="w-4 h-4 text-luxury-gold" /> Marcar en Mapa:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setMapSelectionMode((prev) => (prev === 'pickup' ? 'none' : 'pickup'))
+                    }
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                      mapSelectionMode === 'pickup'
+                        ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20 animate-pulse'
+                        : 'bg-executive-dark hover:bg-executive-border text-gray-300 border border-emerald-500/30'
+                    }`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                    Punto de Inicio (A)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setMapSelectionMode((prev) => (prev === 'destination' ? 'none' : 'destination'))
+                    }
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                      mapSelectionMode === 'destination'
+                        ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/20 animate-pulse'
+                        : 'bg-executive-dark hover:bg-executive-border text-gray-300 border border-luxury-gold/30'
+                    }`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-luxury-gold" />
+                    Punto de Llegada (B)
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSwapLocations}
+                  className="px-3 py-1.5 bg-executive-dark hover:bg-executive-border text-gray-300 hover:text-white rounded-xl text-xs font-bold border border-executive-border flex items-center gap-1.5 transition-colors"
+                  title="Invertir Origen y Destino"
+                >
+                  <ArrowUpDown className="w-3.5 h-3.5 text-luxury-gold" />
+                  <span>Invertir</span>
+                </button>
+              </div>
+
+              {/* Mapbox Map Container */}
+              <div className="relative w-full h-[520px] rounded-3xl overflow-hidden border-2 border-luxury-gold/40 shadow-2xl bg-executive-dark">
+                <OpenStreetMap
+                  centerLat={originCoords.lat}
+                  centerLng={originCoords.lng}
+                  zoom={11}
+                  markers={mapMarkers}
+                  routePolyline={routePolyline}
+                  selectionMode={mapSelectionMode}
+                  onLocationSelect={handleMapLocationSelect}
+                  className="w-full h-full min-h-[520px]"
+                />
+
+                {/* Helper prompt banner overlay */}
+                {mapSelectionMode !== 'none' && (
+                  <div className="absolute top-4 inset-x-4 mx-auto max-w-md bg-black/90 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-luxury-gold shadow-2xl text-center text-xs font-bold text-white flex items-center justify-between gap-3 z-30 animate-bounce">
+                    <span className="flex items-center gap-2">
+                      <LocateFixed className="w-4 h-4 text-luxury-gold animate-spin" />
+                      {mapSelectionMode === 'pickup'
+                        ? 'Haz clic en el mapa para situar el Punto de Inicio (Origen)'
+                        : 'Haz clic en el mapa para situar el Punto de Llegada (Destino)'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setMapSelectionMode('none')}
+                      className="px-2 py-0.5 bg-white/10 hover:bg-white/20 text-gray-300 text-[10px] rounded-lg"
+                    >
+                      Listo
+                    </button>
+                  </div>
+                )}
+
+                {/* Calculating Route Spinner Overlay */}
+                {calculatingRoute && (
+                  <div className="absolute bottom-4 right-4 bg-black/85 backdrop-blur-md px-3.5 py-2 rounded-xl border border-luxury-gold/40 flex items-center gap-2 z-20 text-xs font-bold text-luxury-gold shadow-xl">
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Calculando ruta Mapbox v5...</span>
+                  </div>
+                )}
+              </div>
+
+              {/* VIP Popular Locations Chips */}
+              <div className="bg-executive-card/80 border border-executive-border rounded-2xl p-4 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-gray-300 flex items-center gap-1.5">
+                    <Navigation className="w-3.5 h-3.5 text-luxury-gold" /> Ubicaciones VIP Más Frecuentes (Clic para seleccionar):
+                  </span>
+                  <span className="text-[10px] text-gray-400 font-mono">1-Clic Origen / Destino</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {POPULAR_LOCATIONS.map((preset) => {
+                    const isOrigin = originCoords.lat === preset.lat && originCoords.lng === preset.lng;
+                    const isDest = destinationCoords.lat === preset.lat && destinationCoords.lng === preset.lng;
+
+                    return (
+                      <div
+                        key={preset.name}
+                        className={`group px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-2 transition-all ${
+                          isOrigin
+                            ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400 ring-1 ring-emerald-500/30'
+                            : isDest
+                            ? 'bg-luxury-gold/10 border-luxury-gold/50 text-luxury-gold ring-1 ring-luxury-gold/30'
+                            : 'bg-executive-dark border-executive-border text-gray-300 hover:border-gray-500'
+                        }`}
+                      >
+                        <span>{preset.icon}</span>
+                        <span>{preset.shortName}</span>
+                        <div className="flex items-center gap-1 pl-1 border-l border-executive-border/60">
+                          <button
+                            type="button"
+                            onClick={() => handleSelectPreset(preset, 'origin')}
+                            className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500 hover:text-black font-bold transition-colors"
+                            title="Fijar como Punto de Inicio"
+                          >
+                            Origen
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSelectPreset(preset, 'destination')}
+                            className="text-[9px] px-1.5 py-0.5 rounded bg-luxury-gold/20 text-luxury-gold hover:bg-luxury-gold hover:text-black font-bold transition-colors"
+                            title="Fijar como Punto de Llegada"
+                          >
+                            Destino
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
 
-            {quoteSuccess && (
-              <div className="mb-6 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold flex items-center gap-3">
-                <CheckCircle2 className="w-5 h-5 shrink-0" />
-                <span>¡Solicitud enviada con éxito! Nuestro equipo de despacho le contactará en menos de 5 minutos.</span>
-              </div>
-            )}
-
-            <form onSubmit={handleQuoteSubmit} className="space-y-4 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* RIGHT: TARIFF ESTIMATION & BOOKING CARD (5 COLS) */}
+            <div className="lg:col-span-5 bg-executive-card border border-luxury-gold/40 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+              <div className="flex items-center justify-between border-b border-executive-border pb-4">
                 <div>
-                  <label className="block text-gray-300 font-bold mb-1.5 uppercase tracking-wider">
-                    Punto de Recogida (Origen)
-                  </label>
+                  <span className="text-[10px] font-black text-luxury-gold uppercase tracking-wider">
+                    Tarifa Oficial Transparente
+                  </span>
+                  <h3 className="text-xl font-black text-white">Detalle de Cotización</h3>
+                </div>
+                <div className="p-2 rounded-xl bg-luxury-gold/10 text-luxury-gold border border-luxury-gold/30">
+                  <DollarSign className="w-5 h-5" />
+                </div>
+              </div>
+
+              {quoteSuccess && (
+                <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold flex items-center gap-3 animate-fadeIn">
+                  <CheckCircle2 className="w-5 h-5 shrink-0" />
+                  <span>
+                    ¡Solicitud de traslado recibida con éxito! Nuestro despacho VIP le contactará en menos de 5 minutos.
+                  </span>
+                </div>
+              )}
+
+              {/* Origin & Destination Inputs */}
+              <div className="space-y-3 text-xs">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-gray-300 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                      Punto de Inicio (Origen)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setMapSelectionMode('pickup')}
+                      className="text-[10px] text-emerald-400 hover:underline font-bold flex items-center gap-1"
+                    >
+                      <Crosshair className="w-3 h-3" /> Clic en mapa
+                    </button>
+                  </div>
                   <div className="relative">
-                    <MapPin className="w-4 h-4 text-emerald-400 absolute left-3.5 top-3" />
+                    <MapPin className="w-4 h-4 text-emerald-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
                       required
                       value={quoteOrigin}
                       onChange={(e) => setQuoteOrigin(e.target.value)}
                       placeholder="Ej. Las Mercedes, Caracas"
-                      className="w-full bg-executive-dark border border-executive-border rounded-xl py-2.5 pl-10 pr-3 text-white focus:outline-none focus:border-luxury-gold font-medium"
+                      className="w-full pl-9 pr-3 py-2.5 bg-executive-dark border border-executive-border focus:border-luxury-gold rounded-xl text-white font-medium outline-none text-xs"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-gray-300 font-bold mb-1.5 uppercase tracking-wider">
-                    Punto de Destino
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-gray-300 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-luxury-gold" />
+                      Punto de Llegada (Destino)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setMapSelectionMode('destination')}
+                      className="text-[10px] text-luxury-gold hover:underline font-bold flex items-center gap-1"
+                    >
+                      <Crosshair className="w-3 h-3" /> Clic en mapa
+                    </button>
+                  </div>
                   <div className="relative">
-                    <MapPin className="w-4 h-4 text-luxury-gold absolute left-3.5 top-3" />
+                    <MapPin className="w-4 h-4 text-luxury-gold absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
                       required
                       value={quoteDestination}
                       onChange={(e) => setQuoteDestination(e.target.value)}
-                      placeholder="Ej. Aeropuerto de Maiquetía"
-                      className="w-full bg-executive-dark border border-executive-border rounded-xl py-2.5 pl-10 pr-3 text-white focus:outline-none focus:border-luxury-gold font-medium"
+                      placeholder="Ej. Aeropuerto Internacional de Maiquetía"
+                      className="w-full pl-9 pr-3 py-2.5 bg-executive-dark border border-executive-border focus:border-luxury-gold rounded-xl text-white font-medium outline-none text-xs"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-gray-300 font-bold mb-1.5 uppercase tracking-wider">
-                    Categoría de Vehículo
-                  </label>
-                  <select
-                    value={quoteCategory}
-                    onChange={(e) => setQuoteCategory(e.target.value)}
-                    className="w-full bg-executive-dark border border-executive-border rounded-xl py-2.5 px-3 text-white focus:outline-none focus:border-luxury-gold font-medium"
-                  >
-                    <option value="SEDAN">Sedán Black VIP ($45 USD)</option>
-                    <option value="SUV">SUV Premium ($75 USD)</option>
-                    <option value="ARMORED">SUV Blindada Nivel IV ($180 USD)</option>
-                  </select>
+              {/* Vehicle Category Selector */}
+              <div className="space-y-2">
+                <label className="text-gray-300 font-bold block uppercase tracking-wider text-[11px]">
+                  Seleccionar Categoría de Vehículo
+                </label>
+                <div className="grid grid-cols-1 gap-2">
+                  {Object.values(FARE_TIERS).map((tier) => {
+                    const isSelected = quoteCategory === tier.id;
+                    return (
+                      <button
+                        type="button"
+                        key={tier.id}
+                        onClick={() => setQuoteCategory(tier.id)}
+                        className={`p-3 rounded-2xl border text-left transition-all relative flex items-center justify-between ${
+                          isSelected
+                            ? 'bg-executive-dark border-luxury-gold ring-1 ring-luxury-gold shadow-lg shadow-luxury-gold/10'
+                            : 'bg-executive-dark/50 border-executive-border hover:border-gray-600'
+                        }`}
+                      >
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-extrabold text-white text-xs">{tier.name}</span>
+                            <span className={`text-[9px] px-2 py-0.5 rounded-full border font-bold ${tier.badge}`}>
+                              {tier.passengers} Pasajeros
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-gray-400 line-clamp-1">{tier.models}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className="text-xs font-black text-luxury-gold">
+                            ${tier.baseFare.toFixed(0)}+
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Fare & Route Live Calculation Box */}
+              <div className="bg-gradient-to-br from-executive-dark via-[#0c1427] to-black border-2 border-luxury-gold/50 rounded-2xl p-5 space-y-4 shadow-xl">
+                {/* Distance & Duration Pills */}
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="bg-black/60 p-2.5 rounded-xl border border-white/10 flex items-center gap-2">
+                    <Route className="w-4 h-4 text-luxury-gold shrink-0" />
+                    <div>
+                      <span className="text-[10px] text-gray-400 block uppercase">Distancia</span>
+                      <strong className="text-white font-mono">{routeDistanceKm.toFixed(1)} km</strong>
+                    </div>
+                  </div>
+                  <div className="bg-black/60 p-2.5 rounded-xl border border-white/10 flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-luxury-gold shrink-0" />
+                    <div>
+                      <span className="text-[10px] text-gray-400 block uppercase">Tiempo Aprox.</span>
+                      <strong className="text-white font-mono">~{routeDurationMin} min</strong>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Big Price Display */}
+                <div className="pt-2 border-t border-luxury-gold/20 flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+                  <div>
+                    <span className="text-[10px] text-gray-400 uppercase tracking-widest font-bold block">
+                      Tarifa Total Estimada:
+                    </span>
+                    <div className="text-3xl font-black text-luxury-gold tracking-tight">
+                      ${estimatedFareUsd.toFixed(2)}{' '}
+                      <span className="text-xs font-normal text-gray-400">USD</span>
+                    </div>
+                  </div>
+
+                  <div className="sm:text-right">
+                    <span className="text-[10px] text-emerald-400 font-bold block">
+                      Tasa Oficial BCV ({bcvRate.toFixed(2)})
+                    </span>
+                    <span className="text-sm font-extrabold text-white font-mono">
+                      Bs. {estimatedFareBcv.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="text-[10px] text-gray-400 leading-tight pt-1 flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span>Incluye peajes, seguro RCV y chofer con protocolo de vestimenta ejecutiva.</span>
+                </div>
+              </div>
+
+              {/* Passenger Quick Form */}
+              <form onSubmit={handleQuoteSubmit} className="space-y-3 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-gray-300 font-bold block mb-1">Nombre o Empresa</label>
+                    <input
+                      type="text"
+                      required
+                      value={passengerName}
+                      onChange={(e) => setPassengerName(e.target.value)}
+                      placeholder="Ej. Dr. Alejandro Rossi"
+                      className="w-full bg-executive-dark border border-executive-border rounded-xl py-2 px-3 text-white focus:outline-none focus:border-luxury-gold font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-gray-300 font-bold block mb-1">Teléfono / WhatsApp</label>
+                    <input
+                      type="tel"
+                      required
+                      value={passengerPhone}
+                      onChange={(e) => setPassengerPhone(e.target.value)}
+                      placeholder="+58 414 000 0000"
+                      className="w-full bg-executive-dark border border-executive-border rounded-xl py-2 px-3 text-white focus:outline-none focus:border-luxury-gold font-medium font-mono"
+                    />
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block text-gray-300 font-bold mb-1.5 uppercase tracking-wider">
-                    Nombre o Empresa
-                  </label>
+                  <label className="text-gray-300 font-bold block mb-1">Observaciones / N° de Vuelo (Opcional)</label>
                   <input
                     type="text"
-                    required
-                    placeholder="Ej. Dr. Alejandro Rossi"
-                    className="w-full bg-executive-dark border border-executive-border rounded-xl py-2.5 px-3 text-white focus:outline-none focus:border-luxury-gold font-medium"
+                    value={passengerNotes}
+                    onChange={(e) => setPassengerNotes(e.target.value)}
+                    placeholder="Ej. Vuelo Laser QL-1922 llegando a las 14:30"
+                    className="w-full bg-executive-dark border border-executive-border rounded-xl py-2 px-3 text-white focus:outline-none focus:border-luxury-gold font-medium"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-gray-300 font-bold mb-1.5 uppercase tracking-wider">
-                    Teléfono / WhatsApp
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    placeholder="+58 414 000 0000"
-                    className="w-full bg-executive-dark border border-executive-border rounded-xl py-2.5 px-3 text-white focus:outline-none focus:border-luxury-gold font-medium font-mono"
-                  />
-                </div>
-              </div>
+                {/* Action Buttons */}
+                <div className="pt-2 space-y-2">
+                  <button
+                    type="submit"
+                    className="w-full py-3.5 rounded-xl bg-gradient-to-r from-luxury-gold to-yellow-500 hover:from-yellow-400 hover:to-luxury-gold text-black font-black text-xs uppercase tracking-widest transition-all duration-300 shadow-xl shadow-luxury-gold/20 flex items-center justify-center gap-2 transform hover:scale-[1.01]"
+                  >
+                    <Send className="w-4 h-4" />
+                    <span>Confirmar Solicitud de Traslado</span>
+                  </button>
 
-              <div className="pt-2">
-                <button
-                  type="submit"
-                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-luxury-gold to-yellow-500 hover:from-yellow-400 hover:to-luxury-gold text-black font-black text-xs uppercase tracking-widest transition-all duration-300 shadow-xl shadow-luxury-gold/20 flex items-center justify-center gap-2"
-                >
-                  <Send className="w-4 h-4" />
-                  <span>Confirmar Solicitud de Traslado</span>
-                </button>
-              </div>
-            </form>
+                  <button
+                    type="button"
+                    onClick={handleWhatsAppBooking}
+                    className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    <span>Cotizar Inmediatamente vía WhatsApp Oficial</span>
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       </section>
