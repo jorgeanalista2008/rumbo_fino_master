@@ -3,6 +3,7 @@
 import React from 'react';
 import { X, Navigation, Radio, Car, Star, Phone, Mail, ShieldCheck, ExternalLink, MapPin } from 'lucide-react';
 import { OpenStreetMap } from './OpenStreetMap';
+import { ModalPortal } from './ModalPortal';
 import Link from 'next/link';
 
 interface DriverGpsModalProps {
@@ -87,27 +88,35 @@ export function DriverGpsModal({ driver, onClose }: DriverGpsModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="bg-executive-card border border-luxury-gold/50 rounded-3xl w-full max-w-4xl max-h-[92vh] overflow-hidden shadow-2xl flex flex-col">
-        {/* Header */}
-        <div className="p-5 bg-executive-dark border-b border-executive-border flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-luxury-gold/10 border border-luxury-gold/30 flex items-center justify-center text-luxury-gold">
-              <Radio className="w-5 h-5 animate-pulse" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-black text-white">Rastreo GPS Satelital en Tiempo Real</h2>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                  {driver.isOnline ? 'EN LÍNEA • TRANSMITIENDO' : 'OFFLINE'}
-                </span>
+    <ModalPortal>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md overflow-y-auto">
+        <div className="bg-executive-card border border-luxury-gold/50 rounded-3xl w-full max-w-4xl max-h-[92vh] overflow-hidden shadow-2xl flex flex-col my-auto">
+          {/* Header */}
+          <div className="p-5 bg-executive-dark border-b border-executive-border flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-luxury-gold/10 border border-luxury-gold/30 flex items-center justify-center text-luxury-gold">
+                <Radio className={`w-5 h-5 ${driver.isOnline ? 'animate-pulse text-emerald-400' : 'text-gray-400'}`} />
               </div>
-              <p className="text-xs text-gray-400">
-                Monitoreo de telemetría y geolocalización satelital para la unidad de {fullName}
-              </p>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-black text-white">Rastreo GPS Satelital en Tiempo Real</h2>
+                  {driver.isOnline ? (
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                      EN LÍNEA • TRANSMITIENDO
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-gray-500/10 text-gray-400 border border-gray-500/30 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-gray-500" />
+                      DESCONECTADO (OFFLINE)
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-400">
+                  Monitoreo de telemetría y geolocalización satelital para la unidad de {fullName}
+                </p>
+              </div>
             </div>
-          </div>
           <button
             onClick={onClose}
             className="p-2 text-gray-400 hover:text-white rounded-xl hover:bg-executive-border transition-colors"
@@ -233,5 +242,6 @@ export function DriverGpsModal({ driver, onClose }: DriverGpsModalProps) {
         </div>
       </div>
     </div>
-  );
+  </ModalPortal>
+);
 }

@@ -20,6 +20,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { ModalPortal } from './ModalPortal';
 
 export type UserRole = string;
 export type UserStatus = 'ACTIVE' | 'PENDING_APPROVAL' | 'SUSPENDED' | 'INACTIVE';
@@ -235,8 +236,9 @@ export function UserModal({ user, isOpen, onClose, onSuccess, onToast }: UserMod
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 overflow-y-auto animate-fadeIn">
-      <div className="bg-executive-card border border-luxury-gold/40 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden my-8">
+    <ModalPortal>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 overflow-y-auto">
+        <div className="bg-executive-card border border-luxury-gold/40 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden my-auto">
         {/* MODAL HEADER */}
         <div className="flex items-center justify-between p-6 border-b border-executive-border bg-executive-dark/80">
           <div className="flex items-center gap-3">
@@ -465,5 +467,6 @@ export function UserModal({ user, isOpen, onClose, onSuccess, onToast }: UserMod
         </form>
       </div>
     </div>
+  </ModalPortal>
   );
 }

@@ -147,8 +147,19 @@ export function OpenStreetMap({
 
         markersGroup.current = L.layerGroup().addTo(map);
         leafletInstance.current = map;
+
+        // Invalidate size to guarantee rendering inside modals and animated tabs
+        setTimeout(() => {
+          map.invalidateSize();
+        }, 150);
+        setTimeout(() => {
+          map.invalidateSize();
+        }, 500);
       } else {
         leafletInstance.current.setView([centerLat, centerLng], zoom);
+        setTimeout(() => {
+          leafletInstance.current?.invalidateSize();
+        }, 100);
       }
 
       // Map Click Event for selecting Pickup Origen or Destination anywhere in Venezuela
@@ -257,6 +268,20 @@ export function OpenStreetMap({
     };
 
     loadLeafletScript();
+
+    const resizeObserver = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => {
+      if (leafletInstance.current) {
+        leafletInstance.current.invalidateSize();
+      }
+    }) : null;
+
+    if (resizeObserver && mapRef.current) {
+      resizeObserver.observe(mapRef.current);
+    }
+
+    return () => {
+      resizeObserver?.disconnect();
+    };
   }, [centerLat, centerLng, zoom, markers, routePolyline, onLocationSelect, selectionMode]);
 
   return (

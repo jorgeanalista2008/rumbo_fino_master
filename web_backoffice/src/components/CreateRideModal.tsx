@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { AddressAutocomplete } from '@/components/AddressAutocomplete';
+import { ModalPortal } from '@/components/ModalPortal';
 
 interface CreateRideModalProps {
   onClose: () => void;
@@ -200,8 +201,9 @@ export function CreateRideModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 overflow-y-auto">
-      <div className="bg-executive-card border border-executive-border rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden my-8">
+    <ModalPortal>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 overflow-y-auto">
+        <div className="bg-executive-card border border-executive-border rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden my-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-executive-border bg-executive-dark/50">
           <div className="flex items-center gap-3">
@@ -432,5 +434,6 @@ export function CreateRideModal({
         </form>
       </div>
     </div>
-  );
+  </ModalPortal>
+);
 }

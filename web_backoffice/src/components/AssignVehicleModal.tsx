@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Car, Gauge, FileText, CheckCircle2, RefreshCw } from 'lucide-react';
 import { api } from '@/lib/api';
+import { ModalPortal } from './ModalPortal';
 
 interface AssignVehicleModalProps {
   driverId: string | null;
@@ -82,8 +83,9 @@ export function AssignVehicleModal({
   if (!driverId) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="bg-executive-card border border-executive-border rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+    <ModalPortal>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 overflow-y-auto">
+        <div className="bg-executive-card border border-executive-border rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden my-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-executive-border bg-executive-dark/50">
           <div className="flex items-center gap-3">
@@ -181,5 +183,6 @@ export function AssignVehicleModal({
         </form>
       </div>
     </div>
-  );
+  </ModalPortal>
+);
 }

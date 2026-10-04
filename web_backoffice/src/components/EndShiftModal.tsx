@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { X, Gauge, StopCircle, CheckCircle2 } from 'lucide-react';
+import { ModalPortal } from './ModalPortal';
 
 interface EndShiftModalProps {
   driverName: string;
@@ -19,8 +20,9 @@ export function EndShiftModal({ driverName, onConfirm, onClose }: EndShiftModalP
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-executive-card border border-executive-border rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+    <ModalPortal>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 overflow-y-auto">
+        <div className="bg-executive-card border border-executive-border rounded-2xl w-full max-w-md shadow-2xl overflow-hidden my-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-executive-border bg-executive-dark/60">
           <div className="flex items-center gap-3">
@@ -79,5 +81,6 @@ export function EndShiftModal({ driverName, onConfirm, onClose }: EndShiftModalP
         </form>
       </div>
     </div>
+  </ModalPortal>
   );
 }

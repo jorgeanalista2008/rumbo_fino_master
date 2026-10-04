@@ -26,6 +26,7 @@ import {
   Camera,
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { ModalPortal } from './ModalPortal';
 
 interface DriverProfileModalProps {
   driverId: string | null;
@@ -238,8 +239,9 @@ export function DriverProfileModal({
   if (!driverId) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 overflow-y-auto">
-      <div className="bg-executive-card border border-executive-border rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-8">
+    <ModalPortal>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 overflow-y-auto">
+        <div className="bg-executive-card border border-executive-border rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto">
         {/* Toast Notification */}
         {toastMessage && (
           <div
@@ -900,5 +902,6 @@ export function DriverProfileModal({
         </div>
       </div>
     </div>
+  </ModalPortal>
   );
 }

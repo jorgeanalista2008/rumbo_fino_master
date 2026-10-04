@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Edit3, Shield, User, Phone, Mail, FileText, CheckCircle2, Camera, Upload, RefreshCw } from 'lucide-react';
 import { api } from '@/lib/api';
+import { ModalPortal } from './ModalPortal';
 
 interface EditDriverModalProps {
   driver: any;
@@ -102,8 +103,9 @@ export function EditDriverModal({ driver, onClose, onSuccess }: EditDriverModalP
   if (!driver) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-executive-card border border-executive-border rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden my-8">
+    <ModalPortal>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 overflow-y-auto">
+        <div className="bg-executive-card border border-executive-border rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden my-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-executive-border bg-executive-dark/50">
           <div className="flex items-center gap-3">
@@ -304,5 +306,6 @@ export function EditDriverModal({ driver, onClose, onSuccess }: EditDriverModalP
         </form>
       </div>
     </div>
+  </ModalPortal>
   );
 }

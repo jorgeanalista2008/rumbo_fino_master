@@ -18,21 +18,26 @@ export default function DashboardPage() {
   const [summary, setSummary] = useState<any>(null);
   const [vehiclesCount, setVehiclesCount] = useState(0);
   const [driversCount, setDriversCount] = useState(0);
+  const [onlineDriversCount, setOnlineDriversCount] = useState(0);
 
   useEffect(() => {
     async function loadData() {
       try {
         const [sumRes, vehRes, driRes] = await Promise.all([
           api.get('/financials/summary').catch(() => ({
-            data: { data: { totalVolume: 45.0, totalPlatformCommission: 6.75 } },
+            data: { data: { totalVolume: 0, totalPlatformCommission: 0 } },
           })),
           api.get('/vehicles').catch(() => ({ data: { data: [] } })),
           api.get('/drivers').catch(() => ({ data: { data: [] } })),
         ]);
 
-        setSummary(sumRes.data?.data || { totalVolume: 45.0, totalPlatformCommission: 6.75 });
-        setVehiclesCount(vehRes.data?.data?.length || 2);
-        setDriversCount(driRes.data?.data?.length || 2);
+        const vehiclesList = Array.isArray(vehRes.data?.data) ? vehRes.data.data : [];
+        const driversList = Array.isArray(driRes.data?.data) ? driRes.data.data : [];
+
+        setSummary(sumRes.data?.data || { totalVolume: 0, totalPlatformCommission: 0 });
+        setVehiclesCount(vehiclesList.length);
+        setDriversCount(driversList.length);
+        setOnlineDriversCount(driversList.filter((d: any) => d.isOnline === true).length);
       } catch (err) {
         console.error('Error cargando métricas:', err);
       }
@@ -119,9 +124,17 @@ export default function DashboardPage() {
           </div>
           <div>
             <div className="text-2xl font-black text-white">{driversCount} Choferes</div>
-            <p className="text-xs text-emerald-400 flex items-center gap-1 mt-1">
-              <CheckCircle2 className="w-3.5 h-3.5" /> 1 Chofer En Línea Transmitiendo
-            </p>
+            {onlineDriversCount > 0 ? (
+              <p className="text-xs text-emerald-400 flex items-center gap-1.5 mt-1 font-medium">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block" />
+                {onlineDriversCount} {onlineDriversCount === 1 ? 'Chofer En Línea' : 'Choferes En Línea'}
+              </p>
+            ) : (
+              <p className="text-xs text-gray-400 flex items-center gap-1.5 mt-1 font-medium">
+                <span className="w-2 h-2 rounded-full bg-gray-500 inline-block" />
+                0 Choferes En Línea (Desconectados)
+              </p>
+            )}
           </div>
         </div>
       </div>

@@ -35,6 +35,7 @@ import {
   StopCircle,
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { ModalPortal } from '@/components/ModalPortal';
 
 interface DocumentItem {
   id: string;
@@ -1038,8 +1039,9 @@ export default function VehiclesPage() {
 
       {/* FULL EXECUTIVE VEHICLE TECHNICAL DOSSIER & DOCUMENT AUDIT MODAL */}
       {showDetailModal && selectedVehicle && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-executive-card border border-executive-border rounded-3xl w-full max-w-4xl p-6 sm:p-8 space-y-6 shadow-2xl my-8 max-h-[90vh] overflow-y-auto">
+        <ModalPortal>
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-executive-card border border-executive-border rounded-3xl w-full max-w-4xl p-6 sm:p-8 space-y-6 shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
             <div className="flex items-start justify-between border-b border-executive-border pb-5">
               <div className="space-y-1">
@@ -1689,12 +1691,14 @@ export default function VehiclesPage() {
             </div>
           </div>
         </div>
+      </ModalPortal>
       )}
 
       {/* NEW VEHICLE REGISTRATION MODAL */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-executive-card border border-executive-border rounded-3xl w-full max-w-4xl p-6 sm:p-8 space-y-6 shadow-2xl my-8 max-h-[90vh] overflow-y-auto">
+        <ModalPortal>
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-executive-card border border-executive-border rounded-3xl w-full max-w-4xl p-6 sm:p-8 space-y-6 shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-executive-border pb-4">
               <div className="flex items-center gap-3">
@@ -1936,6 +1940,7 @@ export default function VehiclesPage() {
             </form>
           </div>
         </div>
+      </ModalPortal>
       )}
     </div>
   );
