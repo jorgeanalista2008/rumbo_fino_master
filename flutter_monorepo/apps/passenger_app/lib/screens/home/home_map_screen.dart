@@ -5,7 +5,6 @@ import 'package:latlong2/latlong.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import 'package:core_ui/core_ui.dart';
-import 'package:core_location/core_location.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/ride_provider.dart';
 import 'destination_search_dialog.dart';
@@ -80,7 +79,7 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
             ),
             children: [
               TileLayer(
-                urlTemplate: MapboxConfig.darkTilesUrl,
+                urlTemplate: ride.mapTilesUrl,
                 userAgentPackageName: 'com.rumbofino.passenger_app',
                 maxZoom: 19,
               ),
@@ -344,32 +343,76 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
             ),
           ),
 
-          // 3. Floating Map Controls (GPS Recenter button)
+          // 3. Floating Map Controls (GPS Recenter & Mapbox Style Toggle)
           Positioned(
             right: 16,
             bottom: _getBottomOffset(ride.flowState),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => _centerOnLocation(ride.passengerLocation),
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: ExecutiveColors.surfaceGlass,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Mapbox Style Switcher Button (Dark VIP / Satellite)
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      if (ride.mapStyle == 'dark') {
+                        ride.setMapStyle('satellite');
+                      } else {
+                        ride.setMapStyle('dark');
+                      }
+                    },
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: ExecutiveColors.borderLight),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.3),
-                        blurRadius: 10,
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: ExecutiveColors.surfaceGlass,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: ExecutiveColors.borderLight),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.3),
+                            blurRadius: 10,
+                          ),
+                        ],
                       ),
-                    ],
+                      child: Icon(
+                        ride.mapStyle == 'satellite'
+                            ? Icons.satellite_alt_rounded
+                            : Icons.layers_rounded,
+                        color: ExecutiveColors.gold,
+                        size: 22,
+                      ),
+                    ),
                   ),
-                  child: const Icon(Icons.my_location, color: ExecutiveColors.gold),
                 ),
-              ),
+                const SizedBox(height: 10),
+
+                // GPS Recenter Button
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => _centerOnLocation(ride.passengerLocation),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: ExecutiveColors.surfaceGlass,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: ExecutiveColors.borderLight),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.3),
+                            blurRadius: 10,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(Icons.my_location, color: ExecutiveColors.gold),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
 

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:core_location/core_location.dart';
 import '../network/api_client.dart';
 import '../network/driver_socket_service.dart';
 import '../../models/driver_model.dart';
@@ -15,6 +16,30 @@ class DriverShiftProvider extends ChangeNotifier {
   bool _isShiftActive = false;
   bool _isLoading = false;
   String? _errorMessage;
+
+  // Mapbox Style Configuration
+  String _mapStyle = 'dark'; // 'dark' | 'navigation' | 'satellite'
+  String get mapStyle => _mapStyle;
+  String get mapTilesUrl {
+    switch (_mapStyle) {
+      case 'navigation':
+        return MapboxConfig.navigationNightTilesUrl;
+      case 'satellite':
+        return MapboxConfig.satelliteTilesUrl;
+      case 'dark':
+      default:
+        return MapboxConfig.darkTilesUrl;
+    }
+  }
+
+  void setMapStyle(String style) {
+    _mapStyle = style;
+    notifyListeners();
+  }
+
+  // Active Mapbox Route Polyline
+  List<LatLng> _routePoints = [];
+  List<LatLng> get routePoints => _routePoints;
 
   // GPS Telemetry
   LatLng _currentLocation = const LatLng(10.4806, -66.9036); // Caracas Center
@@ -62,6 +87,35 @@ class DriverShiftProvider extends ChangeNotifier {
   int get completedTripsToday => _completedTripsToday;
   double get earningsUsdToday => _earningsUsdToday;
   double get earningsVesToday => _earningsUsdToday * _bcvRate;
+
+  Future<void> fetchMapboxDirections() async {
+    if (_activeRide == null) {
+      _routePoints = [];
+      notifyListeners();
+      return;
+    }
+
+    try {
+      final url = MapboxConfig.directionsUrl(
+        originLng: _activeRide!.pickupLng,
+        originLat: _activeRide!.pickupLat,
+        destLng: _activeRide!.dropoffLng,
+        destLat: _activeRide!.dropoffLat,
+      );
+      final response = await _api.dio.get(url);
+      final data = response.data;
+      if (data != null && data['routes'] is List && (data['routes'] as List).isNotEmpty) {
+        final route = data['routes'][0];
+        final List coordinates = route['geometry']['coordinates'];
+        _routePoints = coordinates
+            .map((c) => LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble()))
+            .toList();
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('[DriverShiftProvider] Error Mapbox Directions: $e');
+    }
+  }
 
   DriverShiftProvider() {
     _initSocketListeners();
@@ -363,12 +417,14 @@ class DriverShiftProvider extends ChangeNotifier {
 
       _isLoading = false;
       notifyListeners();
+      fetchMapboxDirections();
       return true;
     } catch (e) {
       // Fallback local assignment
       _activeRide = rideToAccept;
       _isLoading = false;
       notifyListeners();
+      fetchMapboxDirections();
       return true;
     }
   }
@@ -390,6 +446,7 @@ class DriverShiftProvider extends ChangeNotifier {
         _completedTripsToday++;
         _earningsUsdToday += _activeRide!.fareAmountUsd;
         _activeRide = null;
+        _routePoints = [];
       } else {
         _activeRide = DriverRideModel(
           id: _activeRide!.id,

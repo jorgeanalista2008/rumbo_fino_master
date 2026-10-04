@@ -55,6 +55,7 @@ class MapboxConfig {
 
   static const String darkStyleId = 'mapbox/dark-v11';
   static const String navigationNightStyleId = 'mapbox/navigation-night-v1';
+  static const String satelliteStyleId = 'mapbox/satellite-streets-v12';
 
   static String get darkTilesUrl =>
       'https://api.mapbox.com/styles/v1/$darkStyleId/tiles/256/{z}/{x}/{y}@2x?access_token=$accessToken';
@@ -62,6 +63,17 @@ class MapboxConfig {
   static String get navigationNightTilesUrl =>
       'https://api.mapbox.com/styles/v1/$navigationNightStyleId/tiles/256/{z}/{x}/{y}@2x?access_token=$accessToken';
 
+  static String get satelliteTilesUrl =>
+      'https://api.mapbox.com/styles/v1/$satelliteStyleId/tiles/256/{z}/{x}/{y}@2x?access_token=$accessToken';
+
   static String geocodingUrl(String query) =>
       'https://api.mapbox.com/geocoding/v5/mapbox.places/${Uri.encodeComponent(query)}.json?country=ve&access_token=$accessToken';
+
+  static String directionsUrl({
+    required double originLng,
+    required double originLat,
+    required double destLng,
+    required double destLat,
+  }) =>
+      'https://api.mapbox.com/directions/v5/mapbox/driving/$originLng,$originLat;$destLng,$destLat?geometries=geojson&overview=full&access_token=$accessToken';
 }

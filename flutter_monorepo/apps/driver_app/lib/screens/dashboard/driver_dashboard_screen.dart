@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:core_ui/core_ui.dart';
-import 'package:core_location/core_location.dart';
 import '../../core/providers/driver_auth_provider.dart';
 import '../../core/providers/driver_shift_provider.dart';
 import '../../models/driver_ride_model.dart';
@@ -86,23 +85,25 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
               maxZoom: 18.0,
             ),
             children: [
-              // Mapbox High-Definition Luxury Dark Tiles
+              // Mapbox High-Definition Luxury Dark/Nav/Satellite Tiles
               TileLayer(
-                urlTemplate: MapboxConfig.darkTilesUrl,
+                urlTemplate: shift.mapTilesUrl,
                 userAgentPackageName: 'com.rumbofino.driver_app',
                 maxZoom: 19,
               ),
 
-              // Route Polyline if Active Ride
+              // Route Polyline if Active Ride (Real Mapbox Directions road geometry)
               if (shift.activeRide != null)
                 PolylineLayer(
                   polylines: [
                     Polyline(
-                      points: [
-                        LatLng(shift.activeRide!.pickupLat, shift.activeRide!.pickupLng),
-                        LatLng(shift.activeRide!.dropoffLat, shift.activeRide!.dropoffLng),
-                      ],
-                      strokeWidth: 4.0,
+                      points: shift.routePoints.isNotEmpty
+                          ? shift.routePoints
+                          : [
+                              LatLng(shift.activeRide!.pickupLat, shift.activeRide!.pickupLng),
+                              LatLng(shift.activeRide!.dropoffLat, shift.activeRide!.dropoffLng),
+                            ],
+                      strokeWidth: 4.5,
                       color: ExecutiveColors.gold,
                     ),
                   ],
@@ -282,6 +283,54 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                                 'BCV: Bs. ${shift.bcvRate.toStringAsFixed(2)}',
                                 style: ExecutiveTypography.caption.copyWith(
                                   color: ExecutiveColors.gold,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Mapbox Style Switcher Pill (Dark VIP, Nav Night, Satellite)
+                      GestureDetector(
+                        onTap: () {
+                          final current = shift.mapStyle;
+                          if (current == 'dark') {
+                            shift.setMapStyle('navigation');
+                          } else if (current == 'navigation') {
+                            shift.setMapStyle('satellite');
+                          } else {
+                            shift.setMapStyle('dark');
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: ExecutiveColors.surface.withOpacity(0.92),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.white24),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                shift.mapStyle == 'satellite'
+                                    ? Icons.satellite_alt_rounded
+                                    : shift.mapStyle == 'navigation'
+                                        ? Icons.navigation_rounded
+                                        : Icons.layers_rounded,
+                                size: 13,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                shift.mapStyle == 'satellite'
+                                    ? 'Satélite'
+                                    : shift.mapStyle == 'navigation'
+                                        ? 'Nav Nocturno'
+                                        : 'Dark VIP',
+                                style: ExecutiveTypography.caption.copyWith(
+                                  color: Colors.white,
+                                  fontSize: 11,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),

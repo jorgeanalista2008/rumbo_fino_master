@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:core_location/core_location.dart';
 import '../network/api_client.dart';
 import '../network/socket_service.dart';
 import '../../models/telemetry_models.dart';
@@ -62,6 +63,18 @@ class RideProvider extends ChangeNotifier {
   RideFlowState _flowState = RideFlowState.initial;
   LatLng _passengerLocation = const LatLng(10.4900, -66.8600); // Caracas default
   bool _isLoadingLocation = false;
+
+  // Mapbox Style Configuration
+  String _mapStyle = 'dark'; // 'dark' | 'satellite'
+  String get mapStyle => _mapStyle;
+  String get mapTilesUrl => _mapStyle == 'satellite'
+      ? MapboxConfig.satelliteTilesUrl
+      : MapboxConfig.darkTilesUrl;
+
+  void setMapStyle(String style) {
+    _mapStyle = style;
+    notifyListeners();
+  }
 
   double _bcvRate = 875.0;
   String? _bcvDate;
@@ -338,6 +351,12 @@ class RideProvider extends ChangeNotifier {
         _socket.joinRideRoom(_activeRide!.id);
         _updateFlowFromStatus(_activeRide!.status);
         _startRidePolling(_activeRide!.id);
+        fetchActiveRideRoute(
+          _activeRide!.originLatitude,
+          _activeRide!.originLongitude,
+          _activeRide!.destinationLatitude,
+          _activeRide!.destinationLongitude,
+        );
       }
     } catch (e) {
       debugPrint('[RideProvider] No active ride: $e');
@@ -375,6 +394,57 @@ class RideProvider extends ChangeNotifier {
 
     // Request dynamic server quote in background if available
     _fetchServerFareEstimate();
+    _fetchMapboxRoute();
+  }
+
+  Future<void> _fetchMapboxRoute() async {
+    if (_destinationLocation == null) return;
+    try {
+      final url = MapboxConfig.directionsUrl(
+        originLng: _passengerLocation.longitude,
+        originLat: _passengerLocation.latitude,
+        destLng: _destinationLocation!.longitude,
+        destLat: _destinationLocation!.latitude,
+      );
+      final response = await _api.dio.get(url);
+      final data = response.data;
+      if (data != null && data['routes'] is List && (data['routes'] as List).isNotEmpty) {
+        final route = data['routes'][0];
+        final List coordinates = route['geometry']['coordinates'];
+        _routePoints = coordinates
+            .map((c) => LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble()))
+            .toList();
+        _routeDistanceKm = double.parse(((route['distance'] as num) / 1000.0).toStringAsFixed(2));
+        _routeEstimatedMinutes = ((route['duration'] as num) / 60.0).ceil();
+        _recalculateCategoryFares();
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('[RideProvider] Error Mapbox Directions: $e');
+    }
+  }
+
+  Future<void> fetchActiveRideRoute(double pLat, double pLng, double dLat, double dLng) async {
+    try {
+      final url = MapboxConfig.directionsUrl(
+        originLng: pLng,
+        originLat: pLat,
+        destLng: dLng,
+        destLat: dLat,
+      );
+      final response = await _api.dio.get(url);
+      final data = response.data;
+      if (data != null && data['routes'] is List && (data['routes'] as List).isNotEmpty) {
+        final route = data['routes'][0];
+        final List coordinates = route['geometry']['coordinates'];
+        _routePoints = coordinates
+            .map((c) => LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble()))
+            .toList();
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('[RideProvider] Error Active Ride Mapbox Directions: $e');
+    }
   }
 
   Future<void> _fetchServerFareEstimate() async {
