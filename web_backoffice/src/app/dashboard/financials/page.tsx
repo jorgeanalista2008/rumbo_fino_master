@@ -130,64 +130,8 @@ export default function FinancialsPage() {
   const [payoutRef, setPayoutRef] = useState<string>('');
   const [isProcessingPayout, setIsProcessingPayout] = useState<boolean>(false);
 
-  // Initial Bank Reconciliation Mock Data
-  const [bankPayments, setBankPayments] = useState<BankPayment[]>([
-    {
-      id: 'bp-1',
-      reference: 'REF-0102-884920',
-      bankName: 'Banco de Venezuela (0102)',
-      phoneOrId: '0412-9876543 / V-18.442.110',
-      amountVes: 39375.0,
-      amountUsd: 45.0,
-      status: 'VERIFIED',
-      date: '2026-10-02 18:30',
-      serviceCode: 'FARE-eb49d543',
-    },
-    {
-      id: 'bp-2',
-      reference: 'REF-0105-339102',
-      bankName: 'Banco Mercantil (0105)',
-      phoneOrId: '0414-9123456 / V-20.109.832',
-      amountVes: 21000.0,
-      amountUsd: 24.0,
-      status: 'PENDING',
-      date: '2026-10-03 14:15',
-      serviceCode: 'FARE-c09a12e8',
-    },
-    {
-      id: 'bp-3',
-      reference: 'REF-0134-554190',
-      bankName: 'Banesco Banco Universal (0134)',
-      phoneOrId: '0424-5551234 / V-15.890.312',
-      amountVes: 52500.0,
-      amountUsd: 60.0,
-      status: 'VERIFIED',
-      date: '2026-10-03 09:20',
-      serviceCode: 'FARE-aa81f990',
-    },
-    {
-      id: 'bp-4',
-      reference: 'REF-0108-771239',
-      bankName: 'Banco Provincial BBVA (0108)',
-      phoneOrId: '0416-8812345 / V-24.331.002',
-      amountVes: 30625.0,
-      amountUsd: 35.0,
-      status: 'PENDING',
-      date: '2026-10-03 11:45',
-      serviceCode: 'FARE-77bb8311',
-    },
-    {
-      id: 'bp-5',
-      reference: 'REF-0102-991204',
-      bankName: 'Banco de Venezuela (0102)',
-      phoneOrId: '0414-3312984 / V-19.456.789',
-      amountVes: 17500.0,
-      amountUsd: 20.0,
-      status: 'VERIFIED',
-      date: '2026-10-01 16:10',
-      serviceCode: 'FARE-55cc9901',
-    },
-  ]);
+  // Bank Reconciliation Data
+  const [bankPayments, setBankPayments] = useState<BankPayment[]>([]);
 
   const loadFinancials = async () => {
     setLoading(true);
@@ -196,9 +140,9 @@ export default function FinancialsPage() {
         api.get('/financials/summary').catch(() => ({
           data: {
             data: {
-              totalVolume: 45.0,
-              totalPlatformCommission: 6.75,
-              totalGrossFares: 38.25,
+              totalVolume: 0.0,
+              totalPlatformCommission: 0.0,
+              totalGrossFares: 0.0,
             },
           },
         })),
@@ -215,203 +159,9 @@ export default function FinancialsPage() {
         })),
       ]);
 
-      setSummary(sumRes.data?.data || { totalVolume: 45.0, totalPlatformCommission: 6.75 });
-      
-      // If transactions returned from backend, use them; otherwise provide rich initial demo Venezuelan transactions
-      const txData = txRes.data?.data || [];
-      if (txData && txData.length > 0) {
-        setTransactions(txData);
-      } else {
-        setTransactions([
-          {
-            id: 'tx-1',
-            referenceCode: 'FARE-eb49d543',
-            type: 'RIDE_FARE',
-            amount: 45.0,
-            status: 'COMPLETED',
-            description: 'Servicio Ejecutivo: Las Mercedes ➔ Maiquetía VIP',
-            createdAt: '2026-10-03T19:15:00.000Z',
-            driver: { user: { firstName: 'Carlos', lastName: 'Mendoza' } },
-            passenger: { firstName: 'Alejandro', lastName: 'Pérez' },
-          },
-          {
-            id: 'tx-2',
-            referenceCode: 'COMM-eb49d543',
-            type: 'PLATFORM_COMMISSION',
-            amount: 6.75,
-            status: 'COMPLETED',
-            description: 'Retención de Comisión Plataforma (15%)',
-            createdAt: '2026-10-03T19:15:00.000Z',
-          },
-          {
-            id: 'tx-3',
-            referenceCode: 'FARE-c09a12e8',
-            type: 'RIDE_FARE',
-            amount: 24.0,
-            status: 'COMPLETED',
-            description: 'Servicio Corporativo: Altamira ➔ El Hatillo',
-            createdAt: '2026-10-03T14:15:00.000Z',
-            driver: { user: { firstName: 'Fernando', lastName: 'Alonso' } },
-            passenger: { firstName: 'María', lastName: 'Corina' },
-          },
-          {
-            id: 'tx-4',
-            referenceCode: 'COMM-c09a12e8',
-            type: 'PLATFORM_COMMISSION',
-            amount: 3.6,
-            status: 'COMPLETED',
-            description: 'Retención de Comisión Plataforma (15%)',
-            createdAt: '2026-10-03T14:15:00.000Z',
-          },
-          {
-            id: 'tx-5',
-            referenceCode: 'PAY-fa771890',
-            type: 'DRIVER_PAYOUT',
-            amount: 50.0,
-            status: 'COMPLETED',
-            description: 'Liquidación de Saldo Billetera vía Pago Móvil Banesco',
-            createdAt: '2026-10-02T11:00:00.000Z',
-            driver: { user: { firstName: 'Fernando', lastName: 'Alonso' } },
-          },
-          {
-            id: 'tx-6',
-            referenceCode: 'FARE-aa81f990',
-            type: 'RIDE_FARE',
-            amount: 60.0,
-            status: 'COMPLETED',
-            description: 'Servicio SUV Blindada: CCCT ➔ Aeropuerto La Carlota',
-            createdAt: '2026-10-02T09:20:00.000Z',
-            driver: { user: { firstName: 'Roberto', lastName: 'Gómez' } },
-            passenger: { firstName: 'Directiva', lastName: 'Corporativa' },
-          },
-          {
-            id: 'tx-7',
-            referenceCode: 'COMM-aa81f990',
-            type: 'PLATFORM_COMMISSION',
-            amount: 9.0,
-            status: 'COMPLETED',
-            description: 'Retención de Comisión Plataforma (15%)',
-            createdAt: '2026-10-02T09:20:00.000Z',
-          },
-          {
-            id: 'tx-8',
-            referenceCode: 'FARE-77bb8311',
-            type: 'RIDE_FARE',
-            amount: 35.0,
-            status: 'COMPLETED',
-            description: 'Servicio Sedán VIP: Los Palos Grandes ➔ Valle Arriba',
-            createdAt: '2026-10-01T20:30:00.000Z',
-            driver: { user: { firstName: 'Carlos', lastName: 'Mendoza' } },
-            passenger: { firstName: 'Gabriela', lastName: 'Torres' },
-          },
-          {
-            id: 'tx-9',
-            referenceCode: 'COMM-77bb8311',
-            type: 'PLATFORM_COMMISSION',
-            amount: 5.25,
-            status: 'COMPLETED',
-            description: 'Retención de Comisión Plataforma (15%)',
-            createdAt: '2026-10-01T20:30:00.000Z',
-          },
-          {
-            id: 'tx-10',
-            referenceCode: 'ADJ-11029831',
-            type: 'ADJUSTMENT',
-            amount: 10.0,
-            status: 'COMPLETED',
-            description: 'Bono de Fidelidad e Incentivo por Horas Pico',
-            createdAt: '2026-09-30T17:00:00.000Z',
-            driver: { user: { firstName: 'Fernando', lastName: 'Alonso' } },
-          },
-          {
-            id: 'tx-11',
-            referenceCode: 'FARE-55cc9901',
-            type: 'RIDE_FARE',
-            amount: 20.0,
-            status: 'COMPLETED',
-            description: 'Servicio Urbano Ejecutivo: Las Mercedes ➔ Chacao',
-            createdAt: '2026-09-29T15:45:00.000Z',
-            driver: { user: { firstName: 'Roberto', lastName: 'Gómez' } },
-            passenger: { firstName: 'Luis', lastName: 'Ramírez' },
-          },
-          {
-            id: 'tx-12',
-            referenceCode: 'COMM-55cc9901',
-            type: 'PLATFORM_COMMISSION',
-            amount: 3.0,
-            status: 'COMPLETED',
-            description: 'Retención de Comisión Plataforma (15%)',
-            createdAt: '2026-09-29T15:45:00.000Z',
-          },
-        ]);
-      }
-
-      if (balRes.data?.data && balRes.data.data.length > 0) {
-        setDriverBalances(balRes.data.data);
-      } else {
-        setDriverBalances([
-          {
-            id: 'bal-1',
-            driver: {
-              id: 'drv-carlos',
-              user: { firstName: 'Carlos', lastName: 'Mendoza', phoneNumber: '+58 412 987 654' },
-            },
-            currentBalance: -12.5,
-            totalEarned: 240.0,
-            pendingPayout: 0.0,
-            status: 'DEBT_ACTIVE',
-            updatedAt: '2026-10-03T19:15:00.000Z',
-          },
-          {
-            id: 'bal-2',
-            driver: {
-              id: 'drv-fernando',
-              user: { firstName: 'Fernando', lastName: 'Alonso', phoneNumber: '+58 414 912 345' },
-            },
-            currentBalance: 85.0,
-            totalEarned: 410.0,
-            pendingPayout: 85.0,
-            status: 'SOLVENT',
-            updatedAt: '2026-10-03T14:15:00.000Z',
-          },
-          {
-            id: 'bal-3',
-            driver: {
-              id: 'drv-roberto',
-              user: { firstName: 'Roberto', lastName: 'Gómez', phoneNumber: '+58 424 555 789' },
-            },
-            currentBalance: -45.0,
-            totalEarned: 180.0,
-            pendingPayout: 0.0,
-            status: 'LIMIT_EXCEEDED',
-            updatedAt: '2026-10-02T09:20:00.000Z',
-          },
-          {
-            id: 'bal-4',
-            driver: {
-              id: 'drv-juan',
-              user: { firstName: 'Juan Pablo', lastName: 'Montoya', phoneNumber: '+58 414 332 119' },
-            },
-            currentBalance: 120.0,
-            totalEarned: 580.0,
-            pendingPayout: 120.0,
-            status: 'SOLVENT',
-            updatedAt: '2026-10-01T12:00:00.000Z',
-          },
-          {
-            id: 'bal-5',
-            driver: {
-              id: 'drv-andres',
-              user: { firstName: 'Andrés', lastName: 'Giménez', phoneNumber: '+58 412 445 667' },
-            },
-            currentBalance: -5.0,
-            totalEarned: 95.0,
-            pendingPayout: 0.0,
-            status: 'DEBT_ACTIVE',
-            updatedAt: '2026-09-30T10:10:00.000Z',
-          },
-        ]);
-      }
+      setSummary(sumRes.data?.data || { totalVolume: 0.0, totalPlatformCommission: 0.0 });
+      setTransactions(txRes.data?.data || []);
+      setDriverBalances(balRes.data?.data || []);
 
       if (rateRes.data?.data) {
         const rateData = rateRes.data.data;
@@ -428,6 +178,7 @@ export default function FinancialsPage() {
 
   useEffect(() => {
     loadFinancials();
+
   }, []);
 
   // Sync / Update BCV Rate in Backend
@@ -671,8 +422,8 @@ export default function FinancialsPage() {
     // Total Fares
     const rideFares = transactions.filter((t) => t.type === 'RIDE_FARE');
     const totalGrossFares = rideFares.reduce((acc, t) => acc + Number(t.amount || 0), 0);
-    const countRides = rideFares.length || 1;
-    const ticketPromedio = totalGrossFares / countRides;
+    const countRides = rideFares.length;
+    const ticketPromedio = countRides > 0 ? totalGrossFares / countRides : 0;
 
     // Platform Commissions
     const commissionTxs = transactions.filter((t) => t.type === 'PLATFORM_COMMISSION');
@@ -690,9 +441,9 @@ export default function FinancialsPage() {
       .filter((b) => Number(b.currentBalance) > 0)
       .reduce((acc, b) => acc + Number(b.currentBalance), 0);
 
-    const totalFleetDrivers = driverBalances.length || 1;
+    const totalFleetDrivers = driverBalances.length;
     const solventDriversCount = driverBalances.filter((b) => Number(b.currentBalance) >= 0).length;
-    const solvencyRate = ((solventDriversCount / totalFleetDrivers) * 100).toFixed(1);
+    const solvencyRate = totalFleetDrivers > 0 ? ((solventDriversCount / totalFleetDrivers) * 100).toFixed(1) : '100.0';
 
     // Total Verified Pago Movil
     const verifiedVes = bankPayments
@@ -719,10 +470,92 @@ export default function FinancialsPage() {
     };
   }, [transactions, driverBalances, bankPayments]);
 
-  // Dynamic Volume
-  const totalVol = summary ? Number(summary.totalVolume || 0) : calculatedMetrics.totalGrossFares || 174.0;
-  const totalComm = summary ? Number(summary.totalPlatformCommission || 0) : calculatedMetrics.totalCommissions || 27.6;
-  const netDriver = totalVol - totalComm;
+  // Dynamic Volume (Strict Real Data from DB)
+  const totalVol = summary?.totalVolume !== undefined ? Number(summary.totalVolume) : calculatedMetrics.totalGrossFares;
+  const totalComm = summary?.totalPlatformCommission !== undefined ? Number(summary.totalPlatformCommission) : calculatedMetrics.totalCommissions;
+  const netDriver = Math.max(0, totalVol - totalComm);
+
+  // Dynamic 7-day breakdown from actual transactions
+  const weeklyData = useMemo(() => {
+    const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    const result = [];
+    const now = new Date();
+
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(now.getDate() - i);
+      const dayName = days[d.getDay()];
+
+      const dayTxs = transactions.filter((t) => {
+        if (t.type !== 'RIDE_FARE') return false;
+        const txDate = new Date(t.createdAt);
+        return (
+          txDate.getDate() === d.getDate() &&
+          txDate.getMonth() === d.getMonth() &&
+          txDate.getFullYear() === d.getFullYear()
+        );
+      });
+
+      const amount = dayTxs.reduce((acc, t) => acc + Number(t.amount || 0), 0);
+      result.push({
+        day: dayName,
+        amount: Math.round(amount * 100) / 100,
+        rides: dayTxs.length,
+      });
+    }
+
+    const totalWeekly = result.reduce((acc, r) => acc + r.amount, 0);
+    const maxAmount = Math.max(...result.map((r) => r.amount), 50);
+
+    return { result, totalWeekly, maxAmount };
+  }, [transactions]);
+
+  // Dynamic VIP category breakdown from actual transactions
+  const categoryStats = useMemo(() => {
+    const total = calculatedMetrics.totalGrossFares;
+    if (total === 0) {
+      return {
+        sedanPct: 0,
+        sedanAmount: 0,
+        suvPct: 0,
+        suvAmount: 0,
+        blindadoPct: 0,
+        blindadoAmount: 0,
+      };
+    }
+
+    const sedanFares = transactions
+      .filter(
+        (t) =>
+          t.type === 'RIDE_FARE' &&
+          (t.description?.toLowerCase().includes('sedán') ||
+            t.description?.toLowerCase().includes('black') ||
+            !t.description?.toLowerCase().includes('suv'))
+      )
+      .reduce((acc, t) => acc + Number(t.amount || 0), 0);
+
+    const suvFares = transactions
+      .filter((t) => t.type === 'RIDE_FARE' && t.description?.toLowerCase().includes('suv'))
+      .reduce((acc, t) => acc + Number(t.amount || 0), 0);
+
+    const blindadoFares = transactions
+      .filter(
+        (t) =>
+          t.type === 'RIDE_FARE' &&
+          (t.description?.toLowerCase().includes('blindad') ||
+            t.description?.toLowerCase().includes('seguridad'))
+      )
+      .reduce((acc, t) => acc + Number(t.amount || 0), 0);
+
+    return {
+      sedanPct: Math.round((sedanFares / total) * 100) || 0,
+      sedanAmount: sedanFares,
+      suvPct: Math.round((suvFares / total) * 100) || 0,
+      suvAmount: suvFares,
+      blindadoPct: Math.round((blindadoFares / total) * 100) || 0,
+      blindadoAmount: blindadoFares,
+    };
+  }, [transactions, calculatedMetrics.totalGrossFares]);
 
   // Smart CSV Export
   const exportToCSV = () => {
@@ -1714,28 +1547,20 @@ export default function FinancialsPage() {
                   </p>
                 </div>
                 <span className="text-xs font-mono font-bold text-luxury-gold bg-luxury-gold/10 px-3 py-1 rounded-lg border border-luxury-gold/20">
-                  Total Semanal: $385.00 USD
+                  Total Semanal: ${weeklyData.totalWeekly.toFixed(2)} USD
                 </span>
               </div>
 
               {/* Pure CSS / SVG Modern Interactive Bar Chart */}
               <div className="pt-6 pb-2">
                 <div className="h-48 flex items-end justify-between gap-3 px-2 border-b border-executive-border">
-                  {[
-                    { day: 'Lun', amount: 35, rides: 2 },
-                    { day: 'Mar', amount: 55, rides: 3 },
-                    { day: 'Mié', amount: 45, rides: 2 },
-                    { day: 'Jue', amount: 70, rides: 4 },
-                    { day: 'Vie', amount: 95, rides: 5 },
-                    { day: 'Sáb', amount: 60, rides: 3 },
-                    { day: 'Dom', amount: 25, rides: 1 },
-                  ].map((bar, idx) => {
-                    const heightPercent = Math.round((bar.amount / 100) * 100);
+                  {weeklyData.result.map((bar, idx) => {
+                    const heightPercent = bar.amount > 0 ? Math.min(100, Math.round((bar.amount / weeklyData.maxAmount) * 100)) : 4;
                     return (
                       <div key={idx} className="flex-1 flex flex-col items-center gap-2 group relative">
                         {/* Tooltip on Hover */}
                         <div className="absolute -top-12 opacity-0 group-hover:opacity-100 transition-opacity bg-black border border-luxury-gold px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold text-luxury-gold shadow-xl pointer-events-none whitespace-nowrap z-20">
-                          ${bar.amount}.00 USD ({bar.rides} viajes)
+                          ${bar.amount.toFixed(2)} USD ({bar.rides} viajes)
                           <div className="text-gray-400 text-[9px]">Bs. {(bar.amount * bcvRate).toFixed(0)}</div>
                         </div>
 
@@ -1743,7 +1568,11 @@ export default function FinancialsPage() {
                         <div className="w-full max-w-[42px] bg-executive-dark rounded-t-xl overflow-hidden h-40 flex items-end">
                           <div
                             style={{ height: `${heightPercent}%` }}
-                            className="w-full bg-gradient-to-t from-luxury-gold/40 to-luxury-gold rounded-t-lg transition-all group-hover:from-luxury-gold group-hover:to-yellow-300"
+                            className={`w-full rounded-t-lg transition-all ${
+                              bar.amount > 0
+                                ? 'bg-gradient-to-t from-luxury-gold/40 to-luxury-gold group-hover:from-luxury-gold group-hover:to-yellow-300'
+                                : 'bg-executive-border/30'
+                            }`}
                           />
                         </div>
 
@@ -1768,7 +1597,9 @@ export default function FinancialsPage() {
                     <span>85% Liquidable a Chofer</span>
                   </div>
                 </div>
-                <span className="text-[11px] font-mono text-gray-500">Actualizado hace 5 min</span>
+                <span className="text-[11px] font-mono text-gray-500">
+                  {transactions.length > 0 ? `${transactions.length} transacciones registradas` : 'Sin movimientos registrados'}
+                </span>
               </div>
             </div>
 
@@ -1789,10 +1620,10 @@ export default function FinancialsPage() {
                       <Car className="w-4 h-4 text-luxury-gold" />
                       Sedán Black VIP
                     </span>
-                    <span className="text-luxury-gold font-mono">60% ($231 USD)</span>
+                    <span className="text-luxury-gold font-mono">{categoryStats.sedanPct}% (${categoryStats.sedanAmount.toFixed(2)} USD)</span>
                   </div>
                   <div className="w-full bg-executive-dark h-2 rounded-full overflow-hidden">
-                    <div className="bg-luxury-gold h-full rounded-full" style={{ width: '60%' }} />
+                    <div className="bg-luxury-gold h-full rounded-full transition-all" style={{ width: `${categoryStats.sedanPct}%` }} />
                   </div>
                 </div>
 
@@ -1802,10 +1633,10 @@ export default function FinancialsPage() {
                       <Car className="w-4 h-4 text-emerald-400" />
                       SUV Premium Executive
                     </span>
-                    <span className="text-emerald-400 font-mono">30% ($115 USD)</span>
+                    <span className="text-emerald-400 font-mono">{categoryStats.suvPct}% (${categoryStats.suvAmount.toFixed(2)} USD)</span>
                   </div>
                   <div className="w-full bg-executive-dark h-2 rounded-full overflow-hidden">
-                    <div className="bg-emerald-400 h-full rounded-full" style={{ width: '30%' }} />
+                    <div className="bg-emerald-400 h-full rounded-full transition-all" style={{ width: `${categoryStats.suvPct}%` }} />
                   </div>
                 </div>
 
@@ -1815,10 +1646,10 @@ export default function FinancialsPage() {
                       <Car className="w-4 h-4 text-blue-400" />
                       Blindado / Seguridad Alta
                     </span>
-                    <span className="text-blue-400 font-mono">10% ($39 USD)</span>
+                    <span className="text-blue-400 font-mono">{categoryStats.blindadoPct}% (${categoryStats.blindadoAmount.toFixed(2)} USD)</span>
                   </div>
                   <div className="w-full bg-executive-dark h-2 rounded-full overflow-hidden">
-                    <div className="bg-blue-400 h-full rounded-full" style={{ width: '10%' }} />
+                    <div className="bg-blue-400 h-full rounded-full transition-all" style={{ width: `${categoryStats.blindadoPct}%` }} />
                   </div>
                 </div>
               </div>
