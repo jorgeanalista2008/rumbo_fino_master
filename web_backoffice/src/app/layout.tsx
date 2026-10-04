@@ -1,5 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
+import { AntdProvider } from './providers';
 
 export const metadata: Metadata = {
   title: 'Rumbo Fino - Backoffice Web Administrativo',
@@ -14,7 +15,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className="bg-executive-dark text-slate-100 min-h-screen">
-        {children}
+        <AntdProvider>{children}</AntdProvider>
       </body>
     </html>
   );
