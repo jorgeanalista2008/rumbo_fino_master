@@ -3,14 +3,26 @@
 @tailwind utilities;
 
 :root {
-  --background: 15 20 28;
-  --foreground: 248 250 252;
+  --background: 10 10 12; /* #0A0A0C Negro asfalto */
+  --foreground: 245 245 247; /* #F5F5F7 Blanco platino */
 }
 
 body {
   color: rgb(var(--foreground));
   background-color: rgb(var(--background));
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* Ant Design Global Polish for Uber Black */
+.ant-table-wrapper .ant-table-thead > tr > th {
+  background-color: #1C1C22 !important;
+  color: #F5F5F7 !important;
+  border-bottom: 1px solid #2C2C32 !important;
+}
+
+.ant-table-wrapper .ant-table-tbody > tr > td {
+  border-bottom: 1px solid #1C1C22 !important;
 }
 
 @layer utilities {
