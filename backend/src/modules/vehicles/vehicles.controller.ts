@@ -67,6 +67,41 @@ export class VehiclesController {
     return ApiResponseDto.ok(vehicle);
   }
 
+  @Post('upload-photo')
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.FLEET_ADMIN, UserRoleEnum.DISPATCHER)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Subir fotografía de vehículo (Frontal, Lateral Izquierdo, Lateral Derecho, Posterior)' })
+  async uploadPhoto(@UploadedFile() file: any) {
+    if (!file) {
+      throw new BadRequestException('Debe seleccionar una fotografía');
+    }
+    const fileUrl = await this.vehiclesService.uploadPhoto(file.buffer, file.originalname, file.mimetype);
+    return ApiResponseDto.ok({ fileUrl }, 'Fotografía cargada exitosamente');
+  }
+
+  @Patch(':id/photos')
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.FLEET_ADMIN, UserRoleEnum.DISPATCHER)
+  @ApiOperation({ summary: 'Actualizar las 4 fotografías de la galería del vehículo' })
+  async updatePhotos(
+    @Param('id') id: string,
+    @Body('photos') photos: string[],
+  ) {
+    const vehicle = await this.vehiclesService.updateVehiclePhotos(id, photos);
+    return ApiResponseDto.ok(vehicle, 'Galería de fotos actualizada exitosamente');
+  }
+
+  @Patch(':id')
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.FLEET_ADMIN, UserRoleEnum.DISPATCHER)
+  @ApiOperation({ summary: 'Actualizar datos y especificaciones del vehículo' })
+  async updateVehicle(
+    @Param('id') id: string,
+    @Body() dto: any,
+  ) {
+    const vehicle = await this.vehiclesService.updateVehicle(id, dto);
+    return ApiResponseDto.ok(vehicle, 'Vehículo actualizado exitosamente');
+  }
+
   @Patch(':id/status')
   @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.FLEET_ADMIN, UserRoleEnum.DISPATCHER)
   @ApiOperation({ summary: 'Actualizar estado operativo del vehículo (AVAILABLE, IN_SERVICE, MAINTENANCE)' })

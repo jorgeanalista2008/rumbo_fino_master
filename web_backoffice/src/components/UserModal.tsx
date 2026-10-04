@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   User,
@@ -18,6 +18,9 @@ import {
   Eye,
   EyeOff,
   Sparkles,
+  Upload,
+  Trash2,
+  RefreshCw,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { ModalPortal } from './ModalPortal';
@@ -104,7 +107,37 @@ export function UserModal({ user, isOpen, onClose, onSuccess, onToast }: UserMod
   const [role, setRole] = useState<string>('PASSENGER');
   const [status, setStatus] = useState<UserStatus>('ACTIVE');
   const [avatarUrl, setAvatarUrl] = useState('');
+  const [photoFileName, setPhotoFileName] = useState('');
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const handlePhotoUpload = async (file: File) => {
+    setUploadingPhoto(true);
+    setPhotoFileName(file.name);
+
+    // Instant local preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (e.target?.result) setAvatarUrl(e.target.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await api.post('/drivers/upload-file', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      if (res.data?.data?.fileUrl) {
+        setAvatarUrl(res.data.data.fileUrl);
+      }
+    } catch (err) {
+      console.warn('API upload fallback:', err);
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
 
   const [allRolesList, setAllRolesList] = useState<
     Array<{ role: string; name: string; icon: any; color: string; desc: string }>
@@ -429,20 +462,75 @@ export function UserModal({ user, isOpen, onClose, onSuccess, onToast }: UserMod
             </div>
           </div>
 
-          {/* AVATAR URL */}
-          <div>
-            <label className="text-gray-300 font-bold block mb-1">
-              URL de Foto de Perfil (Opcional)
-            </label>
-            <div className="relative">
-              <Camera className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="url"
-                value={avatarUrl}
-                onChange={(e) => setAvatarUrl(e.target.value)}
-                placeholder="https://images.unsplash.com/..."
-                className="w-full pl-9 pr-3 py-2.5 bg-executive-dark border border-executive-border focus:border-luxury-gold rounded-xl text-white font-medium outline-none"
-              />
+          {/* AVATAR & PHOTO UPLOAD (Same experience as driver photo) */}
+          <div className="p-4 bg-executive-dark border border-executive-border rounded-2xl flex items-center gap-4">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handlePhotoUpload(f);
+              }}
+            />
+            <div className="relative group shrink-0">
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt="Preview"
+                  className="w-16 h-16 rounded-2xl object-cover border-2 border-luxury-gold/50 shadow-md"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-2xl bg-luxury-gold/10 border border-luxury-gold/30 text-luxury-gold flex items-center justify-center font-black text-xl shadow-md">
+                  {firstName ? firstName.charAt(0).toUpperCase() : 'U'}
+                </div>
+              )}
+              <button
+                type="button"
+                disabled={uploadingPhoto}
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex flex-col items-center justify-center text-luxury-gold cursor-pointer"
+              >
+                <Camera className="w-4 h-4" />
+                <span className="text-[8px] font-bold text-white">SUBIR</span>
+              </button>
+            </div>
+
+            <div className="flex-1 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-200 font-bold text-xs">Fotografía Oficial de Perfil</span>
+                {uploadingPhoto && (
+                  <span className="text-[11px] text-luxury-gold font-bold flex items-center gap-1">
+                    <RefreshCw className="w-3 h-3 animate-spin" /> Subiendo...
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-gray-400">
+                {photoFileName ? `Archivo: ${photoFileName}` : 'Formato JPG o PNG de alta resolución. Clic para cargar desde tu equipo.'}
+              </p>
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingPhoto}
+                  className="px-3 py-1.5 bg-luxury-gold/10 hover:bg-luxury-gold/20 text-luxury-gold border border-luxury-gold/30 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 transition-colors"
+                >
+                  <Upload className="w-3.5 h-3.5" /> Seleccionar Fotografía
+                </button>
+                {avatarUrl && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAvatarUrl('');
+                      setPhotoFileName('');
+                    }}
+                    className="px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-xl text-xs font-bold inline-flex items-center gap-1 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Quitar
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 

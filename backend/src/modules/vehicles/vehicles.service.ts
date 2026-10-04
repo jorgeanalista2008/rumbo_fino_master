@@ -125,6 +125,22 @@ export class VehiclesService {
     return this.vehicleRepository.save(vehicle);
   }
 
+  async uploadPhoto(fileBuffer: Buffer, fileName: string, mimeType: string): Promise<string> {
+    return this.storageService.uploadFile(fileBuffer, fileName, mimeType);
+  }
+
+  async updateVehiclePhotos(id: string, photos: string[]): Promise<VehicleEntity> {
+    const vehicle = await this.findVehicleById(id);
+    vehicle.photos = photos;
+    return this.vehicleRepository.save(vehicle);
+  }
+
+  async updateVehicle(id: string, dto: any): Promise<VehicleEntity> {
+    const vehicle = await this.findVehicleById(id);
+    Object.assign(vehicle, dto);
+    return this.vehicleRepository.save(vehicle);
+  }
+
   async uploadDocument(
     vehicleId: string,
     dto: UploadVehicleDocDto,

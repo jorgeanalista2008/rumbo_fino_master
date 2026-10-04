@@ -33,6 +33,10 @@ import {
   UserCheck,
   UserPlus,
   StopCircle,
+  Camera,
+  ChevronLeft,
+  ChevronRight,
+  Trash2,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { ModalPortal } from '@/components/ModalPortal';
@@ -128,6 +132,122 @@ const REJECTION_PRESETS = [
   'Documento recortado o incompleto',
 ];
 
+const VEHICLE_PHOTO_SLOTS = [
+  { index: 0, key: 'frontal', title: 'Foto Frontal', short: 'Frontal', desc: 'Vista delantera de la unidad con placa visible' },
+  { index: 1, key: 'izquierdo', title: 'Lateral Izquierdo', short: 'Lat. Izq', desc: 'Costado del conductor y carrocería lateral izquierda' },
+  { index: 2, key: 'derecho', title: 'Lateral Derecho', short: 'Lat. Der', desc: 'Costado del copiloto y carrocería lateral derecha' },
+  { index: 3, key: 'posterior', title: 'Foto Posterior', short: 'Posterior', desc: 'Vista trasera con maletero y placa de rodaje' },
+];
+
+function VehicleCardGallery({
+  vehicle,
+  onOpenGallery,
+}: {
+  vehicle: Vehicle;
+  onOpenGallery: () => void;
+}) {
+  const [photoIndex, setPhotoIndex] = useState(0);
+  const slots = VEHICLE_PHOTO_SLOTS;
+  const currentPhoto = vehicle.photos?.[photoIndex] || '';
+
+  const nextPhoto = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPhotoIndex((prev) => (prev + 1) % 4);
+  };
+
+  const prevPhoto = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPhotoIndex((prev) => (prev - 1 + 4) % 4);
+  };
+
+  const countUploaded = (vehicle.photos || []).filter((p) => Boolean(p && p.trim())).length;
+
+  return (
+    <div className="relative w-full h-44 rounded-xl overflow-hidden bg-executive-dark border border-executive-border group select-none">
+      {currentPhoto ? (
+        <img
+          src={currentPhoto}
+          alt={`${vehicle.make} ${vehicle.model} - ${slots[photoIndex].title}`}
+          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+        />
+      ) : (
+        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-executive-dark via-gray-900 to-black text-gray-500 p-4">
+          <Car className="w-10 h-10 text-luxury-gold/30 mb-1" />
+          <span className="text-[11px] font-bold text-gray-300">{slots[photoIndex].title}</span>
+          <span className="text-[9px] text-gray-500">Pendiente de fotografía</span>
+        </div>
+      )}
+
+      {/* Top badges */}
+      <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 z-10">
+        <span className="px-2 py-0.5 bg-black/75 backdrop-blur-md border border-luxury-gold/40 text-luxury-gold text-[10px] font-black rounded-lg">
+          {slots[photoIndex].title.toUpperCase()}
+        </span>
+        <span className="px-1.5 py-0.5 bg-black/60 backdrop-blur-md text-[9px] text-gray-300 font-mono rounded">
+          {photoIndex + 1}/4
+        </span>
+      </div>
+
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onOpenGallery();
+        }}
+        className="absolute top-2.5 right-2.5 px-2 py-1 bg-black/75 hover:bg-luxury-gold hover:text-black text-white text-[10px] font-bold rounded-lg backdrop-blur-md border border-white/20 transition-all flex items-center gap-1 shadow-md z-10"
+        title="Gestionar las 4 fotos del vehículo"
+      >
+        <Camera className="w-3 h-3" />
+        <span>{countUploaded}/4 Fotos</span>
+      </button>
+
+      {/* Prev / Next Arrows */}
+      <button
+        type="button"
+        onClick={prevPhoto}
+        className="absolute left-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/70 hover:bg-black text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm border border-white/10 z-10"
+      >
+        <ChevronLeft className="w-4 h-4" />
+      </button>
+      <button
+        type="button"
+        onClick={nextPhoto}
+        className="absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/70 hover:bg-black text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm border border-white/10 z-10"
+      >
+        <ChevronRight className="w-4 h-4" />
+      </button>
+
+      {/* Angle Selector Tabs / Dots at bottom */}
+      <div className="absolute bottom-2 inset-x-2 flex items-center justify-center gap-1 bg-black/70 backdrop-blur-md py-1 px-1.5 rounded-lg border border-white/10 z-10">
+        {slots.map((s, idx) => {
+          const hasPhoto = Boolean(vehicle.photos?.[idx]);
+          const isActive = photoIndex === idx;
+          return (
+            <button
+              key={s.key}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setPhotoIndex(idx);
+              }}
+              className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-all flex items-center gap-1 ${
+                isActive
+                  ? 'bg-luxury-gold text-black shadow-sm font-extrabold'
+                  : hasPhoto
+                  ? 'text-gray-300 hover:text-white bg-white/10'
+                  : 'text-gray-500 hover:text-gray-300'
+              }`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${hasPhoto ? 'bg-emerald-400' : 'bg-gray-600'}`} />
+              {s.short}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function VehiclesPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [allDrivers, setAllDrivers] = useState<any[]>([]);
@@ -141,8 +261,9 @@ export default function VehiclesPage() {
   // Modals state
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [activeModalTab, setActiveModalTab] = useState<'specs' | 'documents' | 'upload_doc'>('specs');
+  const [activeModalTab, setActiveModalTab] = useState<'specs' | 'gallery' | 'documents' | 'upload_doc'>('specs');
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+  const [uploadingSlot, setUploadingSlot] = useState<number | null>(null);
 
   // Driver Assignment inside modal
   const [showAssignDriverForm, setShowAssignDriverForm] = useState(false);
@@ -195,6 +316,7 @@ export default function VehiclesPage() {
       'Cargadores USB-C / 110V',
       'Agua Mineral & Snacks VIP',
     ],
+    photos: ['', '', '', ''],
   });
 
   const showToast = (text: string, type: 'success' | 'error' = 'success') => {
@@ -246,19 +368,105 @@ export default function VehiclesPage() {
 
   const openAddModal = () => {
     generatePlateAndVin();
+    setNewVehicle((prev) => ({ ...prev, photos: ['', '', '', ''] }));
     setFormError('');
     setShowAddModal(true);
   };
 
-  const openDetailModal = async (vehicle: Vehicle, defaultTab: 'specs' | 'documents' | 'upload_doc' = 'specs') => {
+  const countVehiclePhotos = (v: Vehicle | null): number => {
+    if (!v || !v.photos) return 0;
+    return v.photos.filter((p) => Boolean(p && p.trim())).length;
+  };
+
+  const openDetailModal = async (
+    vehicle: Vehicle,
+    defaultTab: 'specs' | 'gallery' | 'documents' | 'upload_doc' = 'specs',
+    targetPhotoIndex: number = 0,
+  ) => {
     setSelectedVehicle(vehicle);
-    setActivePhotoIndex(0);
+    setActivePhotoIndex(targetPhotoIndex);
     setActiveModalTab(defaultTab);
     setShowAssignDriverForm(false);
     setShowEndShiftPrompt(false);
     setShowDetailModal(true);
     loadVehicleDocuments(vehicle.id);
     loadAllDrivers();
+  };
+
+  const handleUploadVehiclePhoto = async (slotIndex: number, file: File) => {
+    if (!selectedVehicle) return;
+    setUploadingSlot(slotIndex);
+
+    // Instant local preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const result = e.target?.result as string;
+      if (result) {
+        const currentPhotos = [...(selectedVehicle.photos || ['', '', '', ''])];
+        while (currentPhotos.length < 4) currentPhotos.push('');
+        currentPhotos[slotIndex] = result;
+        setSelectedVehicle((prev) => (prev ? { ...prev, photos: currentPhotos } : null));
+      }
+    };
+    reader.readAsDataURL(file);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Try vehicles/upload-photo with fallback to drivers/upload-file
+      let uploadedUrl = '';
+      try {
+        const res = await api.post('/vehicles/upload-photo', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        uploadedUrl = res.data?.data?.fileUrl || res.data?.data?.photoUrl;
+      } catch (e) {
+        const res2 = await api.post('/drivers/upload-file', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        uploadedUrl = res2.data?.data?.fileUrl;
+      }
+
+      if (uploadedUrl) {
+        const currentPhotos = [...(selectedVehicle.photos || ['', '', '', ''])];
+        while (currentPhotos.length < 4) currentPhotos.push('');
+        currentPhotos[slotIndex] = uploadedUrl;
+
+        await api.patch(`/vehicles/${selectedVehicle.id}/photos`, { photos: currentPhotos });
+
+        setSelectedVehicle((prev) => (prev ? { ...prev, photos: currentPhotos } : null));
+        setVehicles((prev) =>
+          prev.map((v) => (v.id === selectedVehicle.id ? { ...v, photos: currentPhotos } : v)),
+        );
+        showToast(`📸 ${VEHICLE_PHOTO_SLOTS[slotIndex].title} actualizada con éxito`);
+      }
+    } catch (err: any) {
+      console.error('Error subiendo fotografía de vehículo:', err);
+      showToast('Error al guardar la fotografía del vehículo', 'error');
+    } finally {
+      setUploadingSlot(null);
+    }
+  };
+
+  const handleRemoveVehiclePhoto = async (slotIndex: number) => {
+    if (!selectedVehicle) return;
+    try {
+      const currentPhotos = [...(selectedVehicle.photos || ['', '', '', ''])];
+      while (currentPhotos.length < 4) currentPhotos.push('');
+      currentPhotos[slotIndex] = '';
+
+      await api.patch(`/vehicles/${selectedVehicle.id}/photos`, { photos: currentPhotos });
+
+      setSelectedVehicle((prev) => (prev ? { ...prev, photos: currentPhotos } : null));
+      setVehicles((prev) =>
+        prev.map((v) => (v.id === selectedVehicle.id ? { ...v, photos: currentPhotos } : v)),
+      );
+      showToast(`Fotografía removida del slot ${VEHICLE_PHOTO_SLOTS[slotIndex].title}`);
+    } catch (err: any) {
+      console.error('Error removiendo foto de vehículo:', err);
+      showToast('Error al remover la fotografía', 'error');
+    }
   };
 
   const loadVehicleDocuments = async (vehicleId: string) => {
@@ -486,6 +694,7 @@ export default function VehiclesPage() {
       fuelType: newVehicle.fuelType,
       luggageCapacity: newVehicle.luggageCapacity,
       amenities: newVehicle.amenities,
+      photos: (newVehicle.photos || []).filter((p) => Boolean(p && p.trim())),
     };
 
     try {
@@ -794,6 +1003,12 @@ export default function VehiclesPage() {
                 key={v.id}
                 className="bg-executive-card border border-executive-border hover:border-luxury-gold/40 rounded-2xl p-5 space-y-4 transition-all hover:shadow-xl hover:shadow-black/40 flex flex-col justify-between"
               >
+                {/* 4-Photo Mini Gallery Component */}
+                <VehicleCardGallery
+                  vehicle={v}
+                  onOpenGallery={() => openDetailModal(v, 'gallery')}
+                />
+
                 {/* Top: Plate, Category & Status */}
                 <div className="space-y-3">
                   <div className="flex items-start justify-between gap-2">
@@ -959,11 +1174,34 @@ export default function VehiclesPage() {
                   return (
                     <tr key={v.id} className="hover:bg-executive-dark/40 transition-colors">
                       <td className="px-5 py-4">
-                        <div className="font-bold text-white text-base">
-                          {v.make} {v.model}
-                        </div>
-                        <div className="text-xs text-gray-400">
-                          Año {v.year} • {v.color} • {v.seats} Asientos VIP
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => openDetailModal(v, 'gallery')}
+                            className="relative w-12 h-12 rounded-xl bg-executive-dark border border-luxury-gold/30 overflow-hidden shrink-0 cursor-pointer hover:border-luxury-gold group flex items-center justify-center shadow"
+                            title="Ver galería 4 fotos"
+                          >
+                            {v.photos?.[0] ? (
+                              <img
+                                src={v.photos[0]}
+                                alt={v.model}
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform"
+                              />
+                            ) : (
+                              <Car className="w-6 h-6 text-luxury-gold/40" />
+                            )}
+                            <span className="absolute bottom-0 inset-x-0 bg-black/85 text-[8px] font-mono text-luxury-gold text-center py-0.5">
+                              {countVehiclePhotos(v)}/4
+                            </span>
+                          </button>
+                          <div>
+                            <div className="font-bold text-white text-base">
+                              {v.make} {v.model}
+                            </div>
+                            <div className="text-xs text-gray-400">
+                              Año {v.year} • {v.color} • {v.seats} Asientos VIP
+                            </div>
+                          </div>
                         </div>
                       </td>
                       <td className="px-5 py-4">
@@ -1067,16 +1305,27 @@ export default function VehiclesPage() {
             </div>
 
             {/* Navigation Tabs */}
-            <div className="flex items-center gap-2 border-b border-executive-border pb-2">
+            <div className="flex items-center gap-2 border-b border-executive-border pb-2 overflow-x-auto">
               <button
                 onClick={() => setActiveModalTab('specs')}
-                className={`px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-2 ${
+                className={`px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-2 shrink-0 ${
                   activeModalTab === 'specs'
                     ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/20'
                     : 'text-gray-400 hover:text-white hover:bg-executive-dark'
                 }`}
               >
                 <Car className="w-4 h-4" /> Ficha Técnica & Confort
+              </button>
+
+              <button
+                onClick={() => setActiveModalTab('gallery')}
+                className={`px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-2 shrink-0 ${
+                  activeModalTab === 'gallery'
+                    ? 'bg-luxury-gold text-black shadow-lg shadow-luxury-gold/20'
+                    : 'text-gray-400 hover:text-white hover:bg-executive-dark'
+                }`}
+              >
+                <Camera className="w-4 h-4" /> Galería 4 Ángulos ({countVehiclePhotos(selectedVehicle)}/4)
               </button>
 
               <button
@@ -1403,10 +1652,233 @@ export default function VehiclesPage() {
                     )}
                   </div>
                 </div>
+
+                {/* Vehicle Photos Preview Strip inside Specs */}
+                <div className="bg-executive-dark/60 p-5 rounded-2xl border border-executive-border space-y-3">
+                  <div className="flex items-center justify-between border-b border-executive-border/60 pb-2">
+                    <h4 className="text-xs font-bold text-luxury-gold uppercase tracking-wider flex items-center gap-2">
+                      <Camera className="w-4 h-4" /> Registro Visual de 4 Ángulos (Homologación)
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={() => setActiveModalTab('gallery')}
+                      className="px-2.5 py-1 bg-luxury-gold/10 hover:bg-luxury-gold/20 text-luxury-gold text-[10px] font-bold rounded-lg border border-luxury-gold/30 flex items-center gap-1 transition-colors"
+                    >
+                      <Camera className="w-3 h-3" /> Abrir Galería Completa ({countVehiclePhotos(selectedVehicle)}/4)
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {VEHICLE_PHOTO_SLOTS.map((slot) => {
+                      const photo = selectedVehicle.photos?.[slot.index];
+                      return (
+                        <div
+                          key={slot.key}
+                          onClick={() => {
+                            setActivePhotoIndex(slot.index);
+                            setActiveModalTab('gallery');
+                          }}
+                          className="group relative rounded-xl overflow-hidden border border-executive-border hover:border-luxury-gold transition-all cursor-pointer bg-executive-dark h-28 flex flex-col justify-end p-2"
+                        >
+                          {photo ? (
+                            <img
+                              src={photo}
+                              alt={slot.title}
+                              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform"
+                            />
+                          ) : (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500">
+                              <Camera className="w-6 h-6 text-gray-600 mb-1" />
+                              <span className="text-[9px] text-gray-400">Sin foto</span>
+                            </div>
+                          )}
+                          <div className="relative z-10 bg-black/80 backdrop-blur-sm px-2 py-1 rounded-lg border border-white/10 flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-white truncate">{slot.short}</span>
+                            <span className={`w-2 h-2 rounded-full ${photo ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             )}
 
-            {/* TAB 2: DIGITAL EXPEDIENT & VERIFICATION */}
+            {/* TAB: 4-PHOTO GALLERY STUDIO */}
+            {activeModalTab === 'gallery' && (
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-executive-dark/70 p-4 rounded-2xl border border-executive-border">
+                  <div>
+                    <h4 className="text-sm font-black text-white flex items-center gap-2">
+                      <Camera className="w-4 h-4 text-luxury-gold" />
+                      Galería Fotográfica Oficial (4 Ángulos Reglamentarios)
+                    </h4>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Registro visual 360° para homologación de la unidad: Frontal, Lateral Izquierdo, Lateral Derecho y Posterior.
+                    </p>
+                  </div>
+                  <span className="px-3 py-1 bg-luxury-gold/10 border border-luxury-gold/30 text-luxury-gold font-bold text-xs rounded-xl self-start sm:self-center">
+                    {countVehiclePhotos(selectedVehicle)} de 4 Fotos Homologadas
+                  </span>
+                </div>
+
+                {/* Main Active Photo Viewer */}
+                <div className="relative w-full h-72 sm:h-96 rounded-2xl overflow-hidden bg-executive-dark border-2 border-luxury-gold/40 shadow-2xl flex items-center justify-center group select-none">
+                  {selectedVehicle.photos?.[activePhotoIndex] ? (
+                    <img
+                      src={selectedVehicle.photos[activePhotoIndex]}
+                      alt={VEHICLE_PHOTO_SLOTS[activePhotoIndex].title}
+                      className="w-full h-full object-contain bg-black/80"
+                    />
+                  ) : (
+                    <div className="text-center p-8 space-y-3">
+                      <div className="w-16 h-16 rounded-2xl bg-luxury-gold/10 border border-luxury-gold/30 flex items-center justify-center mx-auto text-luxury-gold">
+                        <Camera className="w-8 h-8" />
+                      </div>
+                      <h5 className="text-sm font-bold text-white">
+                        {VEHICLE_PHOTO_SLOTS[activePhotoIndex].title} Pendiente
+                      </h5>
+                      <p className="text-xs text-gray-400 max-w-sm mx-auto">
+                        {VEHICLE_PHOTO_SLOTS[activePhotoIndex].desc}. Selecciona un archivo abajo para cargar este ángulo.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => document.getElementById(`studio-photo-input-${activePhotoIndex}`)?.click()}
+                        className="px-4 py-2 bg-luxury-gold hover:bg-luxury-gold-hover text-black font-extrabold text-xs rounded-xl shadow-lg inline-flex items-center gap-2 transition-all"
+                      >
+                        <Upload className="w-3.5 h-3.5" /> Subir {VEHICLE_PHOTO_SLOTS[activePhotoIndex].title}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Overlay angle badge */}
+                  <div className="absolute top-4 left-4 bg-black/85 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-luxury-gold/40 flex items-center gap-2 z-10">
+                    <span className="w-2.5 h-2.5 rounded-full bg-luxury-gold animate-pulse" />
+                    <span className="text-xs font-black text-white uppercase tracking-wider">
+                      ÁNGULO #{activePhotoIndex + 1}: {VEHICLE_PHOTO_SLOTS[activePhotoIndex].title}
+                    </span>
+                  </div>
+
+                  {/* Prev / Next buttons */}
+                  <button
+                    type="button"
+                    onClick={() => setActivePhotoIndex((prev) => (prev - 1 + 4) % 4)}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 p-2.5 rounded-xl bg-black/70 hover:bg-black text-white border border-white/20 transition-all z-10"
+                    title="Ángulo anterior"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActivePhotoIndex((prev) => (prev + 1) % 4)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 rounded-xl bg-black/70 hover:bg-black text-white border border-white/20 transition-all z-10"
+                    title="Siguiente ángulo"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* 4 Interactive Angle Slots Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {VEHICLE_PHOTO_SLOTS.map((slot) => {
+                    const photo = selectedVehicle.photos?.[slot.index];
+                    const isSelected = activePhotoIndex === slot.index;
+                    const isUploading = uploadingSlot === slot.index;
+
+                    return (
+                      <div
+                        key={slot.key}
+                        onClick={() => setActivePhotoIndex(slot.index)}
+                        className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-3 ${
+                          isSelected
+                            ? 'bg-executive-dark border-luxury-gold ring-2 ring-luxury-gold/40 shadow-xl'
+                            : 'bg-executive-dark/50 border-executive-border hover:border-gray-600'
+                        }`}
+                      >
+                        {/* Slot Thumbnail */}
+                        <div className="relative w-full h-32 rounded-xl overflow-hidden bg-black/60 border border-white/10 flex items-center justify-center">
+                          {photo ? (
+                            <img src={photo} alt={slot.title} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="text-center p-2 text-gray-500">
+                              <Camera className="w-6 h-6 mx-auto mb-1 text-gray-600" />
+                              <span className="text-[10px]">Sin fotografía</span>
+                            </div>
+                          )}
+
+                          {photo && (
+                            <span className="absolute top-1.5 right-1.5 px-2 py-0.5 bg-emerald-500/90 text-black text-[9px] font-black rounded-md flex items-center gap-1 shadow">
+                              <CheckCircle2 className="w-2.5 h-2.5" /> OK
+                            </span>
+                          )}
+
+                          {isUploading && (
+                            <div className="absolute inset-0 bg-black/85 flex flex-col items-center justify-center text-luxury-gold">
+                              <RefreshCw className="w-6 h-6 animate-spin mb-1" />
+                              <span className="text-[10px] font-bold">Subiendo...</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Title & Desc */}
+                        <div className="space-y-0.5">
+                          <div className="flex items-center justify-between">
+                            <h5 className="font-black text-xs text-white flex items-center gap-1.5">
+                              <span className={`w-2 h-2 rounded-full ${photo ? 'bg-emerald-400' : 'bg-gray-600'}`} />
+                              {slot.title}
+                            </h5>
+                            <span className="text-[10px] font-mono text-gray-400">#{slot.index + 1}</span>
+                          </div>
+                          <p className="text-[10px] text-gray-400 leading-tight line-clamp-2">{slot.desc}</p>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="pt-1 flex items-center gap-2">
+                          <input
+                            type="file"
+                            id={`studio-photo-input-${slot.index}`}
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const f = e.target.files?.[0];
+                              if (f) handleUploadVehiclePhoto(slot.index, f);
+                            }}
+                          />
+                          <button
+                            type="button"
+                            disabled={isUploading}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              document.getElementById(`studio-photo-input-${slot.index}`)?.click();
+                            }}
+                            className="flex-1 py-1.5 px-2 bg-luxury-gold/10 hover:bg-luxury-gold/20 text-luxury-gold border border-luxury-gold/30 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 transition-colors"
+                          >
+                            <Upload className="w-3 h-3" />
+                            {photo ? 'Cambiar Foto' : 'Subir Foto'}
+                          </button>
+
+                          {photo && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveVehiclePhoto(slot.index);
+                              }}
+                              className="p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-xl transition-colors"
+                              title="Remover fotografía de este ángulo"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 3: DIGITAL EXPEDIENT & VERIFICATION */}
             {activeModalTab === 'documents' && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -1903,6 +2375,129 @@ export default function VehiclesPage() {
                         <CheckCircle2 className={`w-4 h-4 shrink-0 ${checked ? 'text-luxury-gold' : 'text-gray-600'}`} />
                         <span className="truncate">{item}</span>
                       </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Sección 4: Galería 4 Ángulos */}
+              <div className="space-y-3 bg-executive-dark/50 p-5 rounded-2xl border border-executive-border">
+                <div className="flex items-center justify-between border-b border-executive-border/60 pb-2">
+                  <h4 className="text-xs font-bold text-luxury-gold uppercase tracking-wider flex items-center gap-2">
+                    <Camera className="w-4 h-4" /> 4. Fotografías de la Unidad (4 Ángulos Reglamentarios)
+                  </h4>
+                  <span className="text-[10px] text-gray-400">
+                    Opcional al dar de alta (puedes cargarlas ahora o desde el expediente)
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {VEHICLE_PHOTO_SLOTS.map((slot) => {
+                    const photo = newVehicle.photos?.[slot.index];
+                    return (
+                      <div
+                        key={slot.key}
+                        className="bg-executive-dark border border-executive-border rounded-xl p-3 space-y-2 flex flex-col justify-between"
+                      >
+                        <div className="relative w-full h-24 rounded-lg overflow-hidden bg-black/50 border border-white/10 flex items-center justify-center">
+                          {photo ? (
+                            <img src={photo} alt={slot.title} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="text-center p-2 text-gray-500">
+                              <Camera className="w-5 h-5 mx-auto mb-0.5 text-gray-600" />
+                              <span className="text-[9px]">Sin foto</span>
+                            </div>
+                          )}
+                          {photo && (
+                            <span className="absolute top-1 right-1 px-1.5 py-0.5 bg-emerald-500 text-black text-[8px] font-black rounded">
+                              CARGADA
+                            </span>
+                          )}
+                        </div>
+
+                        <div>
+                          <div className="font-bold text-white text-xs">{slot.title}</div>
+                          <div className="text-[9px] text-gray-400 truncate">{slot.short}</div>
+                        </div>
+
+                        <div className="pt-1 flex items-center gap-1.5">
+                          <input
+                            type="file"
+                            id={`new-veh-photo-${slot.index}`}
+                            accept="image/*"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const f = e.target.files?.[0];
+                              if (f) {
+                                // Instant preview
+                                const reader = new FileReader();
+                                reader.onload = (ev) => {
+                                  const r = ev.target?.result as string;
+                                  if (r) {
+                                    setNewVehicle((prev) => {
+                                      const arr = [...(prev.photos || ['', '', '', ''])];
+                                      arr[slot.index] = r;
+                                      return { ...prev, photos: arr };
+                                    });
+                                  }
+                                };
+                                reader.readAsDataURL(f);
+
+                                // Upload to backend
+                                try {
+                                  const formData = new FormData();
+                                  formData.append('file', f);
+                                  let url = '';
+                                  try {
+                                    const res = await api.post('/vehicles/upload-photo', formData, {
+                                      headers: { 'Content-Type': 'multipart/form-data' },
+                                    });
+                                    url = res.data?.data?.fileUrl || res.data?.data?.photoUrl;
+                                  } catch (_) {
+                                    const res2 = await api.post('/drivers/upload-file', formData, {
+                                      headers: { 'Content-Type': 'multipart/form-data' },
+                                    });
+                                    url = res2.data?.data?.fileUrl;
+                                  }
+                                  if (url) {
+                                    setNewVehicle((prev) => {
+                                      const arr = [...(prev.photos || ['', '', '', ''])];
+                                      arr[slot.index] = url;
+                                      return { ...prev, photos: arr };
+                                    });
+                                  }
+                                } catch (err) {
+                                  console.warn('Error uploading photo during new vehicle creation:', err);
+                                }
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => document.getElementById(`new-veh-photo-${slot.index}`)?.click()}
+                            className="flex-1 py-1 px-2 bg-luxury-gold/10 hover:bg-luxury-gold/20 text-luxury-gold border border-luxury-gold/30 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1"
+                          >
+                            <Upload className="w-3 h-3" />
+                            {photo ? 'Cambiar' : 'Subir'}
+                          </button>
+                          {photo && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setNewVehicle((prev) => {
+                                  const arr = [...(prev.photos || ['', '', '', ''])];
+                                  arr[slot.index] = '';
+                                  return { ...prev, photos: arr };
+                                });
+                              }}
+                              className="p-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg"
+                              title="Quitar foto"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     );
                   })}
                 </div>

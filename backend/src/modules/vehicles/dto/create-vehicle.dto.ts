@@ -73,4 +73,13 @@ export class CreateVehicleDto {
   @IsArray()
   @IsOptional()
   amenities?: string[];
+
+  @ApiProperty({
+    example: ['https://...', 'https://...', 'https://...', 'https://...'],
+    description: 'Galería de 4 fotos (Frontal, Lateral Izquierdo, Lateral Derecho, Posterior)',
+    required: false,
+  })
+  @IsArray()
+  @IsOptional()
+  photos?: string[];
 }
