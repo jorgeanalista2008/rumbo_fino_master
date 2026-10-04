@@ -28,6 +28,7 @@ export interface MarkerItem {
   type: 'vehicle' | 'pickup' | 'destination';
   status?: string;
   heading?: number;
+  color?: string;
 }
 
 export interface MapOverlayCardData {
@@ -56,6 +57,7 @@ export interface MapboxMapProps {
   selectionMode?: 'pickup' | 'destination' | 'none';
   onLocationSelect?: (lat: number, lng: number, mode: 'pickup' | 'destination', placeName?: string) => void;
   activeCardData?: MapOverlayCardData | null;
+  focusCoords?: { lat: number; lng: number; zoom?: number } | null;
   className?: string;
 }
 
@@ -75,6 +77,7 @@ export function MapboxMap({
   selectionMode = 'none',
   onLocationSelect,
   activeCardData,
+  focusCoords,
   className = 'w-full h-full min-h-[480px]',
 }: MapboxMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -91,6 +94,17 @@ export function MapboxMap({
   );
   const [isCardMinimized, setIsCardMinimized] = useState<boolean>(false);
   const [mapLoaded, setMapLoaded] = useState<boolean>(false);
+
+  // Smooth Fly-To effect when focusCoords changes
+  useEffect(() => {
+    if (!focusCoords || !mapInstanceRef.current) return;
+    mapInstanceRef.current.flyTo({
+      center: [focusCoords.lng, focusCoords.lat],
+      zoom: focusCoords.zoom || 15,
+      essential: true,
+      duration: 1200,
+    });
+  }, [focusCoords]);
 
   useEffect(() => {
     selectionModeRef.current = selectionMode;
@@ -288,10 +302,11 @@ export function MapboxMap({
       el.className = 'cursor-pointer transform hover:scale-110 transition-transform duration-300 relative';
 
       if (marker.type === 'vehicle') {
+        const pinColor = marker.color || '#D4AF37';
         el.innerHTML = `
           <div class="relative flex items-center justify-center">
-            <span class="absolute w-10 h-10 rounded-full bg-yellow-500/20 animate-ping"></span>
-            <div class="w-9 h-9 rounded-2xl bg-black border-2 border-luxury-gold shadow-2xl flex items-center justify-center text-luxury-gold relative z-10 transition-transform" style="box-shadow: 0 0 15px rgba(212, 175, 55, 0.6)">
+            <span class="absolute w-10 h-10 rounded-full animate-ping" style="background-color: ${pinColor}35"></span>
+            <div class="w-9 h-9 rounded-2xl bg-black border-2 shadow-2xl flex items-center justify-center relative z-10 transition-transform" style="border-color: ${pinColor}; color: ${pinColor}; box-shadow: 0 0 16px ${pinColor}80">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/>
                 <circle cx="7" cy="17" r="2"/>
@@ -299,7 +314,7 @@ export function MapboxMap({
                 <circle cx="17" cy="17" r="2"/>
               </svg>
             </div>
-            <div class="absolute -top-7 left-1/2 transform -translate-x-1/2 bg-black/90 border border-luxury-gold/40 text-luxury-gold text-[9px] font-extrabold px-1.5 py-0.5 rounded-md shadow-md whitespace-nowrap font-mono pointer-events-none">
+            <div class="absolute -top-7 left-1/2 transform -translate-x-1/2 bg-black/90 text-[9px] font-extrabold px-1.5 py-0.5 rounded-md shadow-md whitespace-nowrap font-mono pointer-events-none border" style="border-color: ${pinColor}60; color: ${pinColor}">
               ${marker.title.split(' ')[0] || 'VIP'}
             </div>
           </div>
